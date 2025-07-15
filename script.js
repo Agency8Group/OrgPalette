@@ -20,9 +20,26 @@ class OrgChartSystem {
         this.setupEventListeners();
         this.initializeD3();
         
-        // 초기 화면에서 샘플 데이터 자동 로드
-        this.loadSampleDataInternal();
-        this.updateStatus('샘플 데이터가 로드되었습니다! 시스템이 준비되었습니다.');
+        // 자동 저장 데이터 확인 후 로드
+        this.initializeData();
+    }
+
+    initializeData() {
+        // 자동 저장 데이터 확인
+        const autoSaveData = this.loadFromAutoSave();
+        
+        if (autoSaveData.length > 0) {
+            this.people = autoSaveData;
+            this.ensureCEOExists();
+            this.enforceCEODefaults();
+            this.updatePeopleList();
+            this.updateChart();
+            this.updateStatus('이전 작업 데이터가 자동으로 복원되었습니다.');
+        } else {
+            // 자동 저장 데이터가 없으면 샘플 데이터 로드
+            this.loadSampleDataInternal();
+            this.updateStatus('샘플 데이터가 로드되었습니다! 시스템이 준비되었습니다.');
+        }
     }
 
     initializeElements() {
@@ -44,7 +61,10 @@ class OrgChartSystem {
             zoomInBtn: document.getElementById('zoom-in-btn'),
             zoomOutBtn: document.getElementById('zoom-out-btn'),
             resetZoomBtn: document.getElementById('reset-zoom-btn'),
-            centerBtn: document.getElementById('center-btn')
+            centerBtn: document.getElementById('center-btn'),
+            confirmModal: document.getElementById('confirm-modal'),
+            confirmYes: document.getElementById('confirm-yes'),
+            confirmNo: document.getElementById('confirm-no')
         };
     }
 
@@ -59,6 +79,17 @@ class OrgChartSystem {
         this.elements.zoomOutBtn.addEventListener('click', () => this.zoomOut());
         this.elements.resetZoomBtn.addEventListener('click', () => this.resetZoom());
         this.elements.centerBtn.addEventListener('click', () => this.centerChart());
+        
+        // 확인 팝업 이벤트
+        this.elements.confirmYes.addEventListener('click', () => this.confirmLoadSampleData());
+        this.elements.confirmNo.addEventListener('click', () => this.hideConfirmModal());
+        
+        // 팝업 외부 클릭 시 닫기
+        this.elements.confirmModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.confirmModal) {
+                this.hideConfirmModal();
+            }
+        });
 
         // Enter 키로 사람 추가
         [this.elements.nameInput, this.elements.positionInput, 
@@ -187,23 +218,100 @@ class OrgChartSystem {
         
         this.updatePeopleList();
         this.updateChart();
+        
+        // 자동 저장
+        this.autoSaveToLocalStorage();
     }
 
     loadSampleData() {
-        // 기존 데이터가 있는 경우 자동으로 엑셀 내보내기
+        // 기존 데이터가 있는 경우 확인 팝업 표시
         if (this.people.length > 0) {
-            this.updateStatus('기존 데이터를 엑셀로 백업하는 중...');
-            this.exportToExcel();
-            
-            // 잠시 대기 후 샘플 데이터 로드
-            setTimeout(() => {
-                this.loadSampleDataInternal();
-                this.updateStatus('기존 데이터가 백업되었습니다! 새로운 샘플 데이터가 로드되었습니다.');
-            }, 1000);
+            this.showConfirmModal();
             return;
         }
         
+        // 기존 데이터가 없는 경우 바로 로드
         this.loadSampleDataInternal();
+    }
+
+    showConfirmModal() {
+        this.elements.confirmModal.classList.add('active');
+        this.updateStatus('샘플 데이터 로드 확인이 필요합니다.');
+    }
+
+    hideConfirmModal() {
+        this.elements.confirmModal.classList.remove('active');
+        this.updateStatus('샘플 데이터 로드가 취소되었습니다.');
+    }
+
+    async confirmLoadSampleData() {
+        this.hideConfirmModal();
+        
+        // 현재 데이터를 로컬 스토리지에 백업
+        this.saveToLocalStorage();
+        
+        // 엑셀 파일로 자동 다운로드
+        this.updateStatus('기존 데이터를 엑셀로 백업하는 중...');
+        this.exportToExcel();
+        
+        // 잠시 대기 후 샘플 데이터 로드
+        setTimeout(() => {
+            this.loadSampleDataInternal();
+            this.updateStatus('기존 데이터가 백업되었습니다! 새로운 샘플 데이터가 로드되었습니다.');
+        }, 1000);
+    }
+
+    saveToLocalStorage() {
+        try {
+            const backupData = {
+                people: this.people,
+                timestamp: new Date().toISOString(),
+                backupType: 'sample_load_backup'
+            };
+            localStorage.setItem('orgchart_backup', JSON.stringify(backupData));
+            console.log('데이터가 로컬 스토리지에 백업되었습니다.');
+        } catch (error) {
+            console.error('로컬 스토리지 백업 실패:', error);
+        }
+    }
+
+    loadFromLocalStorage() {
+        try {
+            const backupData = localStorage.getItem('orgchart_backup');
+            if (backupData) {
+                const parsed = JSON.parse(backupData);
+                return parsed.people || [];
+            }
+        } catch (error) {
+            console.error('로컬 스토리지 불러오기 실패:', error);
+        }
+        return [];
+    }
+
+    autoSaveToLocalStorage() {
+        try {
+            const autoSaveData = {
+                people: this.people,
+                timestamp: new Date().toISOString(),
+                backupType: 'auto_save'
+            };
+            localStorage.setItem('orgchart_autosave', JSON.stringify(autoSaveData));
+        } catch (error) {
+            console.error('자동 저장 실패:', error);
+        }
+    }
+
+    loadFromAutoSave() {
+        try {
+            const autoSaveData = localStorage.getItem('orgchart_autosave');
+            if (autoSaveData) {
+                const parsed = JSON.parse(autoSaveData);
+                return parsed.people || [];
+            }
+        } catch (error) {
+            console.error('자동 저장 불러오기 실패:', error);
+        }
+        return [];
     }
 
     loadSampleDataInternal() {
@@ -333,6 +441,9 @@ class OrgChartSystem {
         this.updatePeopleList();
         this.updateChart();
         
+        // 자동 저장
+        this.autoSaveToLocalStorage();
+        
         this.updateStatus(`${name}님이 추가되었습니다.`);
     }
 
@@ -363,6 +474,10 @@ class OrgChartSystem {
         this.people = this.people.filter(p => p.id !== id);
         this.updatePeopleList();
         this.updateChart();
+        
+        // 자동 저장
+        this.autoSaveToLocalStorage();
+        
         this.updateStatus(`${person.name}님이 삭제되었습니다.`);
     }
 
@@ -515,6 +630,10 @@ class OrgChartSystem {
         
         this.updatePeopleList();
         this.updateChart();
+        
+        // 자동 저장
+        this.autoSaveToLocalStorage();
+        
         this.updateStatus('모든 데이터가 삭제되었습니다. (대표이사님은 보호됨)');
     }
 
