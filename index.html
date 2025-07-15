@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>동적 조직도 시스템</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏢 동적 조직도 시스템</h1>
+            <p>엑셀 파일을 업로드하거나 직접 편집하여 조직도를 실시간으로 생성하세요</p>
+        </header>
+
+        <div class="control-panel">
+            <div class="upload-section">
+                <label for="excel-upload" class="upload-btn">
+                    📁 엑셀 파일 업로드
+                    <input type="file" id="excel-upload" accept=".xlsx,.xls" style="display: none;">
+                </label>
+                <button id="sample-data-btn" class="sample-btn">📊 샘플 데이터 로드</button>
+            </div>
+
+            <div class="edit-section">
+                <h3>조직도 데이터 편집</h3>
+                <div class="input-group">
+                    <input type="text" id="name-input" placeholder="이름">
+                    <input type="text" id="position-input" placeholder="직책">
+                    <input type="text" id="department-input" placeholder="부서">
+                    <input type="text" id="manager-input" placeholder="상위자 (선택사항)">
+                    <button id="add-person-btn">➕ 추가</button>
+                </div>
+                
+                <div class="actions">
+                    <button id="clear-all-btn" class="danger-btn">🗑️ 모두 지우기</button>
+                    <button id="export-excel-btn" class="export-btn">📊 엑셀 내보내기</button>
+                    <button id="export-pdf-btn" class="export-btn pdf-btn">📄 조직도 PDF 내보내기</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="sidebar">
+                <h3>팀원 목록</h3>
+                <div id="people-list" class="people-list"></div>
+            </div>
+            
+            <div class="chart-container">
+                <div class="chart-controls">
+                    <button id="zoom-in-btn">🔍 확대</button>
+                    <button id="zoom-out-btn">🔍 축소</button>
+                    <button id="reset-zoom-btn">🔄 원래 크기</button>
+                    <button id="center-btn">🎯 중앙 정렬</button>
+                </div>
+                <div id="org-chart" class="org-chart"></div>
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <div id="status-message">시스템 준비 완료</div>
+            <div id="person-count">팀원 수: 0</div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
