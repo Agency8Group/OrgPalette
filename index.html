@@ -28,18 +28,30 @@
 
             <div class="edit-section">
                 <h3>조직도 데이터 편집</h3>
-                <div class="input-group">
-                    <input type="text" id="name-input" placeholder="이름">
-                    <input type="text" id="position-input" placeholder="직책">
-                    <input type="text" id="department-input" placeholder="부서">
-                    <input type="text" id="manager-input" placeholder="상위자 (선택사항)">
-                    <button id="add-person-btn">➕ 추가</button>
+                <div class="input-container">
+                    <div id="input-rows">
+                        <div class="input-row" data-row="0">
+                            <input type="text" placeholder="이름" class="name-input">
+                            <input type="text" placeholder="직책" class="position-input">
+                            <input type="text" placeholder="부서" class="department-input">
+                            <input type="text" placeholder="상위자 (선택사항)" class="manager-input">
+                            <button type="button" class="add-row-btn">➕</button>
+                        </div>
+                    </div>
+                    
+                    <div class="bulk-actions">
+                        <button id="add-all-btn" class="bulk-add-btn">📥 일괄 추가</button>
+                        <button id="clear-inputs-btn" class="clear-inputs-btn">🗑️ 입력 초기화</button>
+                    </div>
                 </div>
                 
                 <div class="actions">
                     <button id="clear-all-btn" class="danger-btn">🗑️ 모두 지우기</button>
                     <button id="export-excel-btn" class="export-btn">📊 엑셀 내보내기</button>
-                    <button id="export-pdf-btn" class="export-btn pdf-btn">📄 조직도 PDF 내보내기</button>
+                    <div class="pdf-export-group">
+                        <button id="export-pdf-btn" class="export-btn pdf-btn">📄 표준 PDF 내보내기</button>
+                        <button id="export-pdf-hq-btn" class="export-btn pdf-hq-btn">🎨 고화질 PDF 내보내기</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -56,6 +68,7 @@
                     <button id="zoom-out-btn">🔍 축소</button>
                     <button id="reset-zoom-btn">🔄 원래 크기</button>
                     <button id="center-btn">🎯 중앙 정렬</button>
+                    <button id="fit-view-btn">📐 전체 보기</button>
                 </div>
                 <div id="org-chart" class="org-chart"></div>
             </div>

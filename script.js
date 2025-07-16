@@ -28,17 +28,22 @@ class OrgChartSystem {
         // 자동 저장 데이터 확인
         const autoSaveData = this.loadFromAutoSave();
         
-        if (autoSaveData.length > 0) {
+                if (autoSaveData.length > 0) {
             this.people = autoSaveData;
             this.ensureCEOExists();
             this.enforceCEODefaults();
             this.updatePeopleList();
             this.updateChart();
+            
+            // 복원된 데이터를 거시적 관점으로 보기
+            setTimeout(() => {
+                this.fitToView();
+            }, 200);
+            
             this.updateStatus('이전 작업 데이터가 자동으로 복원되었습니다.');
         } else {
             // 자동 저장 데이터가 없으면 샘플 데이터 로드
             this.loadSampleDataInternal();
-            this.updateStatus('샘플 데이터가 로드되었습니다! 시스템이 준비되었습니다.');
         }
     }
 
@@ -46,14 +51,13 @@ class OrgChartSystem {
         this.elements = {
             excelUpload: document.getElementById('excel-upload'),
             sampleDataBtn: document.getElementById('sample-data-btn'),
-            nameInput: document.getElementById('name-input'),
-            positionInput: document.getElementById('position-input'),
-            departmentInput: document.getElementById('department-input'),
-            managerInput: document.getElementById('manager-input'),
-            addPersonBtn: document.getElementById('add-person-btn'),
+            inputRows: document.getElementById('input-rows'),
+            addAllBtn: document.getElementById('add-all-btn'),
+            clearInputsBtn: document.getElementById('clear-inputs-btn'),
             clearAllBtn: document.getElementById('clear-all-btn'),
             exportExcelBtn: document.getElementById('export-excel-btn'),
             exportPdfBtn: document.getElementById('export-pdf-btn'),
+            exportPdfHqBtn: document.getElementById('export-pdf-hq-btn'),
             peopleList: document.getElementById('people-list'),
             orgChart: document.getElementById('org-chart'),
             statusMessage: document.getElementById('status-message'),
@@ -62,23 +66,30 @@ class OrgChartSystem {
             zoomOutBtn: document.getElementById('zoom-out-btn'),
             resetZoomBtn: document.getElementById('reset-zoom-btn'),
             centerBtn: document.getElementById('center-btn'),
+            fitViewBtn: document.getElementById('fit-view-btn'),
             confirmModal: document.getElementById('confirm-modal'),
             confirmYes: document.getElementById('confirm-yes'),
             confirmNo: document.getElementById('confirm-no')
         };
+        
+        // 입력 행 카운터
+        this.rowCounter = 1;
     }
 
     setupEventListeners() {
         this.elements.excelUpload.addEventListener('change', (e) => this.handleExcelUpload(e));
         this.elements.sampleDataBtn.addEventListener('click', () => this.loadSampleData());
-        this.elements.addPersonBtn.addEventListener('click', () => this.addPerson());
+        this.elements.addAllBtn.addEventListener('click', () => this.addAllPeople());
+        this.elements.clearInputsBtn.addEventListener('click', () => this.clearInputs());
         this.elements.clearAllBtn.addEventListener('click', () => this.clearAll());
         this.elements.exportExcelBtn.addEventListener('click', () => this.exportToExcel());
-        this.elements.exportPdfBtn.addEventListener('click', () => this.exportToPDF());
+        this.elements.exportPdfBtn.addEventListener('click', () => this.exportToPDF(false));
+        this.elements.exportPdfHqBtn.addEventListener('click', () => this.exportToPDF(true));
         this.elements.zoomInBtn.addEventListener('click', () => this.zoomIn());
         this.elements.zoomOutBtn.addEventListener('click', () => this.zoomOut());
         this.elements.resetZoomBtn.addEventListener('click', () => this.resetZoom());
         this.elements.centerBtn.addEventListener('click', () => this.centerChart());
+        this.elements.fitViewBtn.addEventListener('click', () => this.fitToView());
         
         // 확인 팝업 이벤트
         this.elements.confirmYes.addEventListener('click', () => this.confirmLoadSampleData());
@@ -91,30 +102,24 @@ class OrgChartSystem {
             }
         });
 
-        // Enter 키로 사람 추가
-        [this.elements.nameInput, this.elements.positionInput, 
-         this.elements.departmentInput, this.elements.managerInput].forEach(input => {
-            input.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    this.addPerson();
-                }
-            });
-        });
+        // 동적 입력 행 이벤트 (이벤트 위임)
+        this.elements.inputRows.addEventListener('click', (e) => this.handleRowButtonClick(e));
+        this.elements.inputRows.addEventListener('keypress', (e) => this.handleRowKeyPress(e));
     }
 
     initializeD3() {
         const chartContainer = this.elements.orgChart;
         const width = chartContainer.clientWidth;
-        const height = 700; // 고정 높이
+        const height = 700; // 컨테이너 고정 높이
 
         this.svg = d3.select(chartContainer)
             .append('svg')
             .attr('width', width)
             .attr('height', height);
 
-        // 줌 기능 설정
+        // 줌 기능 설정 (더 넓은 확대/축소 범위)
         this.zoom = d3.zoom()
-            .scaleExtent([0.1, 3])
+            .scaleExtent([0.05, 5])
             .on('zoom', (event) => {
                 this.currentTransform = event.transform;
                 this.svg.select('g').attr('transform', event.transform);
@@ -125,15 +130,15 @@ class OrgChartSystem {
         // 메인 그룹 생성
         this.svg.append('g').attr('class', 'main-group');
 
-        // 트리 레이아웃 설정
+        // 트리 레이아웃 설정 - 고정된 노드 간격 사용
         this.treeLayout = d3.tree()
-            .size([width - 100, height - 100])
+            .nodeSize([120, 100]) // 고정된 노드 크기 사용 (width, height)
             .separation((a, b) => {
-                // 팀 노드는 더 넓은 간격
+                // 고정된 간격 값 사용
                 if (a.data.type === 'team' || b.data.type === 'team') {
-                    return a.parent === b.parent ? 2 : 3;
+                    return a.parent === b.parent ? 1.8 : 2.2;
                 }
-                return a.parent === b.parent ? 1.5 : 2;
+                return a.parent === b.parent ? 1.0 : 1.5;
             });
     }
 
@@ -219,6 +224,11 @@ class OrgChartSystem {
         this.updatePeopleList();
         this.updateChart();
         
+        // 엑셀 데이터를 거시적 관점으로 보기
+        setTimeout(() => {
+            this.fitToView();
+        }, 200);
+        
         // 자동 저장
         this.autoSaveToLocalStorage();
     }
@@ -251,14 +261,14 @@ class OrgChartSystem {
         this.saveToLocalStorage();
         
         // 엑셀 파일로 자동 다운로드
-        this.updateStatus('기존 데이터를 엑셀로 백업하는 중...');
-        this.exportToExcel();
-        
-        // 잠시 대기 후 샘플 데이터 로드
-        setTimeout(() => {
-            this.loadSampleDataInternal();
-            this.updateStatus('기존 데이터가 백업되었습니다! 새로운 샘플 데이터가 로드되었습니다.');
-        }, 1000);
+            this.updateStatus('기존 데이터를 엑셀로 백업하는 중...');
+            this.exportToExcel();
+            
+            // 잠시 대기 후 샘플 데이터 로드
+            setTimeout(() => {
+                this.loadSampleDataInternal();
+                this.updateStatus('기존 데이터가 백업되었습니다! 새로운 샘플 데이터가 로드되었습니다.');
+            }, 1000);
     }
 
     saveToLocalStorage() {
@@ -299,6 +309,190 @@ class OrgChartSystem {
         } catch (error) {
             console.error('자동 저장 실패:', error);
         }
+    }
+
+    handleRowButtonClick(e) {
+        if (e.target.classList.contains('add-row-btn')) {
+            this.addInputRow();
+        } else if (e.target.classList.contains('remove-row-btn')) {
+            this.removeInputRow(e.target.closest('.input-row'));
+        }
+    }
+
+    handleRowKeyPress(e) {
+        if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+            e.preventDefault();
+            this.addAllPeople();
+        }
+    }
+
+    addInputRow() {
+        const newRow = document.createElement('div');
+        newRow.className = 'input-row';
+        newRow.dataset.row = this.rowCounter++;
+        
+        const hasMultipleRows = this.elements.inputRows.children.length > 0;
+        
+        newRow.innerHTML = `
+            <input type="text" placeholder="이름" class="name-input">
+            <input type="text" placeholder="직책" class="position-input">
+            <input type="text" placeholder="부서" class="department-input">
+            <input type="text" placeholder="상위자 (선택사항)" class="manager-input">
+            <button type="button" class="add-row-btn">➕</button>
+            ${hasMultipleRows ? '<button type="button" class="remove-row-btn">➖</button>' : ''}
+        `;
+        
+        this.elements.inputRows.appendChild(newRow);
+        
+        // 기존 모든 행에 제거 버튼 추가 (1개 이상의 행이 있을 때)
+        if (this.elements.inputRows.children.length > 1) {
+            Array.from(this.elements.inputRows.children).forEach(row => {
+                if (!row.querySelector('.remove-row-btn')) {
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'remove-row-btn';
+                    removeBtn.textContent = '➖';
+                    row.appendChild(removeBtn);
+                }
+            });
+        }
+        
+        // 새 행의 첫 번째 입력에 포커스
+        newRow.querySelector('.name-input').focus();
+        
+        this.updateStatus(`새 입력 행이 추가되었습니다. (총 ${this.elements.inputRows.children.length}개)`);
+    }
+
+    removeInputRow(row) {
+        if (this.elements.inputRows.children.length <= 1) {
+            alert('최소 하나의 입력 행은 필요합니다.');
+            return;
+        }
+        
+        row.remove();
+        
+        // 행이 1개만 남으면 제거 버튼 삭제
+        if (this.elements.inputRows.children.length === 1) {
+            const lastRow = this.elements.inputRows.children[0];
+            const removeBtn = lastRow.querySelector('.remove-row-btn');
+            if (removeBtn) {
+                removeBtn.remove();
+            }
+        }
+        
+        this.updateStatus(`입력 행이 제거되었습니다. (총 ${this.elements.inputRows.children.length}개)`);
+    }
+
+    addAllPeople() {
+        const rows = Array.from(this.elements.inputRows.children);
+        const peopleToAdd = [];
+        let errorCount = 0;
+        let successCount = 0;
+        
+        rows.forEach((row, index) => {
+            const name = row.querySelector('.name-input').value.trim();
+            const position = row.querySelector('.position-input').value.trim();
+            const department = row.querySelector('.department-input').value.trim();
+            const manager = row.querySelector('.manager-input').value.trim();
+            
+            if (!name) {
+                row.querySelector('.name-input').style.borderColor = '#e53e3e';
+                errorCount++;
+                return;
+            } else {
+                row.querySelector('.name-input').style.borderColor = '#e2e8f0';
+            }
+            
+            // 중복 이름 확인
+            if (this.people.some(person => person.name === name)) {
+                row.querySelector('.name-input').style.borderColor = '#e53e3e';
+                errorCount++;
+                return;
+            }
+            
+            // CEO 중복 확인
+            if (name === this.ceoInfo.name) {
+                row.querySelector('.name-input').style.borderColor = '#e53e3e';
+                errorCount++;
+                return;
+            }
+            
+            // CEO 직책 확인
+            const ceoPositions = ['대표이사', '대표', '사장', '회장', 'CEO', 'ceo'];
+            const isCEO = ceoPositions.some(pos => 
+                position.toLowerCase().includes(pos.toLowerCase())
+            );
+            
+            if (isCEO) {
+                row.querySelector('.position-input').style.borderColor = '#e53e3e';
+                errorCount++;
+                return;
+            } else {
+                row.querySelector('.position-input').style.borderColor = '#e2e8f0';
+            }
+            
+            // 상위자 존재 확인
+            if (manager && !this.people.some(person => person.name === manager) && 
+                !peopleToAdd.some(person => person.name === manager)) {
+                row.querySelector('.manager-input').style.borderColor = '#e53e3e';
+                errorCount++;
+                return;
+            } else {
+                row.querySelector('.manager-input').style.borderColor = '#e2e8f0';
+            }
+            
+            peopleToAdd.push({
+                id: this.generateId(),
+                name,
+                position,
+                department: department || '일반',
+                manager
+            });
+            
+            successCount++;
+        });
+        
+        if (errorCount > 0) {
+            this.updateStatus(`${errorCount}개의 오류가 있습니다. 빨간색 테두리 필드를 확인해주세요.`);
+            return;
+        }
+        
+        if (peopleToAdd.length === 0) {
+            this.updateStatus('추가할 데이터가 없습니다.');
+            return;
+        }
+        
+        // 모든 사람 추가
+        this.people.push(...peopleToAdd);
+        
+        // CEO 보호 로직 적용
+        this.ensureCEOExists();
+        this.enforceCEODefaults();
+        
+        this.updatePeopleList();
+        this.updateChart();
+        this.autoSaveToLocalStorage();
+        
+        // 입력 필드 초기화
+        this.clearInputs();
+        
+        this.updateStatus(`${successCount}명이 성공적으로 추가되었습니다!`);
+    }
+
+    clearInputs() {
+        // 모든 입력 행 제거하고 하나만 남기기
+        this.elements.inputRows.innerHTML = `
+            <div class="input-row" data-row="0">
+                <input type="text" placeholder="이름" class="name-input">
+                <input type="text" placeholder="직책" class="position-input">
+                <input type="text" placeholder="부서" class="department-input">
+                <input type="text" placeholder="상위자 (선택사항)" class="manager-input">
+                <button type="button" class="add-row-btn">➕</button>
+            </div>
+        `;
+        
+        this.rowCounter = 1;
+        this.updateStatus('모든 입력이 초기화되었습니다.');
     }
 
     loadFromAutoSave() {
@@ -377,75 +571,16 @@ class OrgChartSystem {
         
         this.updatePeopleList();
         this.updateChart();
+        
+        // 샘플 데이터를 거시적 관점으로 보기
+        setTimeout(() => {
+            this.fitToView();
+        }, 200);
+        
         this.updateStatus(`샘플 데이터가 로드되었습니다! (총 ${this.people.length}명)`);
     }
 
-    addPerson() {
-        const name = this.elements.nameInput.value.trim();
-        const position = this.elements.positionInput.value.trim();
-        const department = this.elements.departmentInput.value.trim();
-        let manager = this.elements.managerInput.value.trim();
 
-        if (!name) {
-            alert('이름을 입력해주세요.');
-            return;
-        }
-
-        // 중복 이름 확인
-        if (this.people.some(person => person.name === name)) {
-            alert('이미 존재하는 이름입니다.');
-            return;
-        }
-
-        // 강필구 대표이사님 추가 시도 방지
-        if (name === this.ceoInfo.name) {
-            alert('대표이사님은 이미 존재하며 추가할 수 없습니다.');
-            return;
-        }
-
-        // 대표이사 자동 처리
-        const ceoPositions = ['대표이사', '대표', '사장', '회장', 'CEO', 'ceo'];
-        const isCEO = ceoPositions.some(pos => 
-            position.toLowerCase().includes(pos.toLowerCase())
-        );
-
-        if (isCEO) {
-            alert('대표이사는 강필구님만 가능합니다.');
-            return;
-        }
-
-        // 일반 직원인 경우 상위자 존재 확인
-        if (manager && !this.people.some(person => person.name === manager)) {
-            alert('상위자가 존재하지 않습니다.');
-            return;
-        }
-
-        this.people.push({
-            id: this.generateId(),
-            name,
-            position,
-            department: department || '일반',
-            manager
-        });
-
-        // 입력 필드 초기화
-        this.elements.nameInput.value = '';
-        this.elements.positionInput.value = '';
-        this.elements.departmentInput.value = '';
-        this.elements.managerInput.value = '';
-
-        // CEO 보호 로직 적용
-        this.ensureCEOExists();
-        this.enforceCEODefaults();
-
-        this.updatePeopleList();
-        this.updateChart();
-        
-        // 자동 저장
-        this.autoSaveToLocalStorage();
-        
-        this.updateStatus(`${name}님이 추가되었습니다.`);
-    }
 
     deletePerson(id) {
         const person = this.people.find(p => p.id === id);
@@ -678,13 +813,14 @@ class OrgChartSystem {
         this.updateStatus('엑셀 파일이 다운로드되었습니다!');
     }
 
-    async exportToPDF() {
+    async exportToPDF(isHighQuality = false) {
         if (this.people.length === 0) {
             alert('내보낼 조직도가 없습니다.');
             return;
         }
 
-        this.updateStatus('PDF 파일을 생성하고 있습니다...');
+        const qualityText = isHighQuality ? '고화질' : '표준';
+        this.updateStatus(`${qualityText} PDF 파일을 생성하고 있습니다...`);
 
         try {
             // 현재 줌 상태 저장
@@ -696,13 +832,30 @@ class OrgChartSystem {
             // 잠시 대기 (애니메이션 완료)
             await new Promise(resolve => setTimeout(resolve, 1000));
 
+            // 화질 설정
+            const qualitySettings = isHighQuality ? {
+                scale: 6, // 6배 확대 (고화질)
+                dpi: 300,
+                format: 'a3' // A3 크기로 더 큰 공간 제공
+            } : {
+                scale: 2, // 2배 확대 (표준)
+                dpi: 150,
+                format: 'a4'
+            };
+
             // 조직도 캔버스로 변환
             const chartElement = this.elements.orgChart;
             const canvas = await html2canvas(chartElement, {
                 backgroundColor: '#ffffff',
-                scale: 2,
+                scale: qualitySettings.scale,
                 useCORS: true,
-                allowTaint: true
+                allowTaint: true,
+                scrollX: 0,
+                scrollY: 0,
+                width: chartElement.offsetWidth,
+                height: chartElement.offsetHeight,
+                dpi: qualitySettings.dpi,
+                pixelRatio: 1
             });
 
             // PDF 생성
@@ -710,12 +863,15 @@ class OrgChartSystem {
             const pdf = new jsPDF({
                 orientation: 'landscape',
                 unit: 'mm',
-                format: 'a4'
+                format: qualitySettings.format
             });
 
             // 이미지 추가
-            const imgData = canvas.toDataURL('image/png');
-            const imgWidth = 297; // A4 landscape width
+            const imgData = canvas.toDataURL('image/png', 1.0); // 최고 품질 PNG
+            const pageWidth = qualitySettings.format === 'a3' ? 420 : 297; // A3: 420mm, A4: 297mm
+            const pageHeight = qualitySettings.format === 'a3' ? 297 : 210; // A3: 297mm, A4: 210mm
+            
+            const imgWidth = pageWidth;
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
             
             let heightLeft = imgHeight;
@@ -723,30 +879,29 @@ class OrgChartSystem {
 
             // 첫 페이지
             pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= 210; // A4 landscape height
+            heightLeft -= pageHeight;
 
             // 필요시 추가 페이지
             while (heightLeft >= 0) {
                 position = heightLeft - imgHeight;
                 pdf.addPage();
                 pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                heightLeft -= 210;
+                heightLeft -= pageHeight;
             }
 
-            // 한국어 폰트 깨짐 문제로 텍스트 제거
-
             // 파일 저장
-            const fileName = `orgchart_${new Date().toISOString().split('T')[0]}.pdf`;
+            const qualityPrefix = isHighQuality ? '_HQ' : '';
+            const fileName = `orgchart${qualityPrefix}_${new Date().toISOString().split('T')[0]}.pdf`;
             pdf.save(fileName);
 
             // 원래 줌 상태 복원
             this.svg.call(this.zoom.transform, currentTransform);
 
-            this.updateStatus('PDF 파일이 다운로드되었습니다!');
+            this.updateStatus(`${qualityText} PDF 파일이 다운로드되었습니다!`);
 
         } catch (error) {
             console.error('PDF 생성 오류:', error);
-            this.updateStatus('PDF 생성 중 오류가 발생했습니다.');
+            this.updateStatus(`${qualityText} PDF 생성 중 오류가 발생했습니다.`);
         }
     }
 
@@ -823,15 +978,8 @@ class OrgChartSystem {
         // 트리 레이아웃 적용
         this.treeLayout(root);
 
-        // 링크 그리기
-        const links = svg.selectAll('.link')
-            .data(root.links())
-            .enter().append('path')
-            .attr('class', 'link')
-            .attr('d', d3.linkVertical()
-                .x(d => d.x)
-                .y(d => d.y)
-            );
+        // 링크 그리기 - 조직도 스타일 연결선
+        this.drawOrganizationLinks(svg, root);
 
         // 노드 그리기
         const nodes = svg.selectAll('.node')
@@ -920,8 +1068,11 @@ class OrgChartSystem {
             .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
             .text(d => d.data.position);
 
-        // 차트 중앙 정렬
-        this.centerChart();
+        // 차트 중앙 정렬 (초기 로드가 아닌 경우에만)
+        // setTimeout을 사용해 DOM 업데이트 후 실행
+        setTimeout(() => {
+            this.centerChart();
+        }, 100);
     }
 
     createHierarchy() {
@@ -1238,10 +1389,8 @@ class OrgChartSystem {
     }
 
     resetZoom() {
-        this.svg.transition().duration(500).call(
-            this.zoom.transform,
-            d3.zoomIdentity
-        );
+        // 원래 크기가 아닌 전체 보기로 리셋
+        this.fitToView();
     }
 
     centerChart() {
@@ -1255,7 +1404,16 @@ class OrgChartSystem {
         const centerX = width / 2;
         const centerY = height / 2;
         
-        const scale = Math.min(width / (bbox.width + 100), height / (bbox.height + 100), 1);
+        // 여백을 충분히 두고 전체 조직도가 보이도록 스케일 계산
+        const padding = 80;
+        const scaleX = (width - padding * 2) / bbox.width;
+        const scaleY = (height - padding * 2) / bbox.height;
+        
+        // 거시적 관점을 위해 적절한 최대 스케일 제한
+        const maxScale = 1.2;
+        const minScale = 0.1;
+        const scale = Math.max(minScale, Math.min(scaleX, scaleY, maxScale));
+        
         const translateX = centerX - (bbox.x + bbox.width / 2) * scale;
         const translateY = centerY - (bbox.y + bbox.height / 2) * scale;
 
@@ -1263,6 +1421,131 @@ class OrgChartSystem {
             this.zoom.transform,
             d3.zoomIdentity.translate(translateX, translateY).scale(scale)
         );
+    }
+
+    fitToView() {
+        const svg = this.svg.select('.main-group');
+        const bbox = svg.node()?.getBBox();
+        
+        if (!bbox) return;
+
+        const width = this.svg.attr('width');
+        const height = this.svg.attr('height');
+        const centerX = width / 2;
+        const centerY = height / 2;
+        
+        // 전체 보기를 위한 더 넉넉한 여백
+        const padding = 100;
+        const scaleX = (width - padding * 2) / bbox.width;
+        const scaleY = (height - padding * 2) / bbox.height;
+        
+        // 거시적 관점을 위해 더 작은 스케일 사용
+        const maxScale = 0.8;
+        const minScale = 0.05;
+        const scale = Math.max(minScale, Math.min(scaleX, scaleY, maxScale));
+        
+        const translateX = centerX - (bbox.x + bbox.width / 2) * scale;
+        const translateY = centerY - (bbox.y + bbox.height / 2) * scale;
+
+        this.svg.transition().duration(1000).call(
+            this.zoom.transform,
+            d3.zoomIdentity.translate(translateX, translateY).scale(scale)
+        );
+        
+        this.updateStatus(`전체 조직도를 거시적 관점으로 조정했습니다. (스케일: ${Math.round(scale * 100)}%)`);
+    }
+
+    drawOrganizationLinks(svg, root) {
+        // 기존 링크 제거
+        svg.selectAll('.link').remove();
+        
+        // 각 노드에 대해 자식들과의 연결선 그리기
+        root.descendants().forEach(node => {
+            if (node.children && node.children.length > 0) {
+                this.drawParentChildLinks(svg, node);
+            }
+        });
+    }
+
+    drawParentChildLinks(svg, parentNode) {
+        const children = parentNode.children;
+        if (!children || children.length === 0) return;
+
+        const parentX = parentNode.x;
+        const parentY = parentNode.y;
+        
+        // 부모 노드의 연결점 계산
+        const parentOffset = parentNode.data.type === 'team' ? 25 : 35; // 팀 노드는 사각형이므로 25, 개인 노드는 원형이므로 35
+        
+        // 자식 노드들의 위치 정보
+        const childPositions = children.map(child => ({
+            x: child.x,
+            y: child.y,
+            offset: child.data.type === 'team' ? 25 : 35 // 각 자식의 타입에 따른 오프셋
+        }));
+
+        // 중간 지점 계산 (부모와 자식의 중간)
+        const midY = parentY + (childPositions[0].y - parentY) / 2;
+
+        if (children.length === 1) {
+            // 자식이 1명인 경우: 직선 연결
+            const child = childPositions[0];
+            svg.append('path')
+                .attr('class', 'link')
+                .attr('d', `M ${parentX} ${parentY + parentOffset}
+                           L ${parentX} ${midY}
+                           L ${child.x} ${midY}
+                           L ${child.x} ${child.y - child.offset}`)
+                .style('cursor', 'pointer')
+                .on('mouseenter', function() {
+                    d3.select(this).style('stroke', '#4a5568').style('stroke-width', '3');
+                })
+                .on('mouseleave', function() {
+                    d3.select(this).style('stroke', '#718096').style('stroke-width', '2');
+                });
+        } else {
+            // 자식이 여러 명인 경우: T자 모양 연결
+            const leftMost = Math.min(...childPositions.map(c => c.x));
+            const rightMost = Math.max(...childPositions.map(c => c.x));
+
+            // 부모에서 중간 지점까지 수직선
+            svg.append('path')
+                .attr('class', 'link')
+                .attr('d', `M ${parentX} ${parentY + parentOffset} L ${parentX} ${midY}`)
+                .style('cursor', 'pointer')
+                .on('mouseenter', function() {
+                    d3.select(this).style('stroke', '#4a5568').style('stroke-width', '3');
+                })
+                .on('mouseleave', function() {
+                    d3.select(this).style('stroke', '#718096').style('stroke-width', '2');
+                });
+
+            // 자식들을 연결하는 수평선
+            svg.append('path')
+                .attr('class', 'link')
+                .attr('d', `M ${leftMost} ${midY} L ${rightMost} ${midY}`)
+                .style('cursor', 'pointer')
+                .on('mouseenter', function() {
+                    d3.select(this).style('stroke', '#4a5568').style('stroke-width', '3');
+                })
+                .on('mouseleave', function() {
+                    d3.select(this).style('stroke', '#718096').style('stroke-width', '2');
+                });
+
+            // 각 자식으로 내려가는 수직선
+            childPositions.forEach(child => {
+                svg.append('path')
+                    .attr('class', 'link')
+                    .attr('d', `M ${child.x} ${midY} L ${child.x} ${child.y - child.offset}`)
+                    .style('cursor', 'pointer')
+                    .on('mouseenter', function() {
+                        d3.select(this).style('stroke', '#4a5568').style('stroke-width', '3');
+                    })
+                    .on('mouseleave', function() {
+                        d3.select(this).style('stroke', '#718096').style('stroke-width', '2');
+                    });
+            });
+        }
     }
 
     updatePersonCount() {
@@ -1295,7 +1578,7 @@ window.addEventListener('resize', () => {
         const height = 700; // 고정 높이
         
         orgChart.svg.attr('width', width).attr('height', height);
-        orgChart.treeLayout.size([width - 100, height - 100]);
+        // nodeSize를 사용하므로 size 재설정이 불필요
         orgChart.updateChart();
     }
 }); 

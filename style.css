@@ -192,50 +192,146 @@ header p {
     font-size: 1.3em;
 }
 
-.input-group {
+/* 입력 컨테이너 스타일 */
+.input-container {
+    margin-bottom: 20px;
+}
+
+#input-rows {
     display: flex;
+    flex-direction: column;
     gap: 10px;
     margin-bottom: 15px;
-    flex-wrap: wrap;
 }
 
-.input-group input {
+.input-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.3s ease;
+}
+
+.input-row:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e0;
+}
+
+.input-row input {
     flex: 1;
-    min-width: 150px;
-    padding: 12px;
-    border: 2px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 16px;
-    transition: border-color 0.3s ease;
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    min-width: 120px;
 }
 
-.input-group input:focus {
+.input-row input:focus {
     outline: none;
     border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
-.input-group button {
-    background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+.add-row-btn {
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
     color: white;
-    padding: 12px 20px;
     border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    min-width: 50px;
+}
+
+.add-row-btn:hover {
+    background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(72, 187, 120, 0.3);
+}
+
+.remove-row-btn {
+    background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    min-width: 50px;
+}
+
+.remove-row-btn:hover {
+    background: linear-gradient(135deg, #c53030 0%, #9c2626 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(229, 62, 62, 0.3);
+}
+
+.bulk-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    padding: 15px;
+    background: #f7fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.bulk-add-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 12px 25px;
     border-radius: 8px;
     cursor: pointer;
     font-size: 16px;
     font-weight: 600;
     transition: all 0.3s ease;
-    white-space: nowrap;
+    min-width: 140px;
 }
 
-.input-group button:hover {
+.bulk-add-btn:hover {
+    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
     transform: translateY(-2px);
-    box-shadow: 0 5px 20px rgba(56, 161, 105, 0.4);
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+}
+
+.clear-inputs-btn {
+    background: linear-gradient(135deg, #a0aec0 0%, #718096 100%);
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    min-width: 140px;
+}
+
+.clear-inputs-btn:hover {
+    background: linear-gradient(135deg, #718096 0%, #4a5568 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(160, 174, 192, 0.4);
 }
 
 .actions {
     display: flex;
     gap: 10px;
+    flex-wrap: wrap;
+}
+
+.pdf-export-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .danger-btn {
@@ -278,6 +374,16 @@ header p {
 
 .pdf-btn:hover {
     box-shadow: 0 5px 20px rgba(159, 122, 234, 0.4);
+}
+
+.pdf-hq-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.pdf-hq-btn:hover {
+    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
 }
 
 /* 메인 컨텐츠 스타일 */
@@ -599,14 +705,13 @@ header p {
 
 .link {
     fill: none;
-    stroke: #a0aec0;
+    stroke: #718096;
     stroke-width: 2;
-    stroke-dasharray: 5,5;
     transition: all 0.3s ease;
 }
 
 .link:hover {
-    stroke: #667eea;
+    stroke: #4a5568;
     stroke-width: 3;
 }
 
@@ -644,12 +749,31 @@ header p {
         max-height: 300px;
     }
     
-    .input-group {
+    .input-row {
         flex-direction: column;
+        gap: 8px;
     }
     
-    .input-group input {
+    .input-row input {
         min-width: 100%;
+    }
+    
+    .bulk-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .bulk-actions button {
+        min-width: 100%;
+    }
+    
+    .pdf-export-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .pdf-export-group button {
+        width: 100%;
     }
     
     .upload-section {
