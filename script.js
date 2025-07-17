@@ -523,53 +523,113 @@ class OrgChartSystem {
             // 최고 경영진 - 강필구 대표이사님
             { id: '1', ...this.ceoInfo },
             
-            // 각 부서의 최고 책임자 (팀 노드가 생성되도록)
-            { id: '2', name: '최개발부장', position: '부장', task: '기술전략', department: '개발팀', manager: '강필구' },
-            { id: '3', name: '정마케팅부장', position: '부장', task: '마케팅전략', department: '마케팅팀', manager: '강필구' },
-            { id: '4', name: '홍영업부장', position: '부장', task: '영업전략', department: '영업팀', manager: '강필구' },
-            { id: '5', name: '김인사부장', position: '부장', task: '인사관리', department: '인사팀', manager: '강필구' },
-            { id: '6', name: '이재무부장', position: '부장', task: '재무관리', department: '재무팀', manager: '강필구' },
+            // 각 부서의 최고 책임자 (CEO 직속)
+            { id: '2', name: '박병도', position: '실장', task: '전략기획 총괄', department: '전략기획실', manager: '강필구' },
+            { id: '3', name: '김정준', position: '본부장', task: '영업 전체 총괄', department: '브랜드사업부', manager: '강필구' },
+            { id: '4', name: '신선일', position: '이사', task: '회계 총괄', department: '경영관리실', manager: '강필구' },
+            { id: '5', name: '신선희', position: '이사', task: '물류(남양주) 총괄', department: '물류지원부', manager: '강필구' },
+            { id: '6', name: '강희구', position: '이사', task: '물류(용인) 총괄', department: '물류지원부', manager: '강필구' },
             
-            // 차장급
-            { id: '7', name: '박프론트차장', position: '차장', task: '프론트엔드개발', department: '개발팀', manager: '최개발부장' },
-            { id: '8', name: '최백엔드차장', position: '차장', task: '백엔드개발', department: '개발팀', manager: '최개발부장' },
-            { id: '9', name: '정모바일차장', position: '차장', task: '모바일개발', department: '개발팀', manager: '최개발부장' },
-            { id: '10', name: '홍디지털차장', position: '차장', task: '디지털마케팅', department: '마케팅팀', manager: '정마케팅부장' },
-            { id: '11', name: '김브랜드차장', position: '차장', task: '브랜드관리', department: '마케팅팀', manager: '정마케팅부장' },
-            { id: '12', name: '이B2B차장', position: '차장', task: 'B2B영업', department: '영업팀', manager: '홍영업부장' },
-            { id: '13', name: '박B2C차장', position: '차장', task: 'B2C영업', department: '영업팀', manager: '홍영업부장' },
-            { id: '14', name: '최채용차장', position: '차장', task: '채용관리', department: '인사팀', manager: '김인사부장' },
-            { id: '15', name: '정교육차장', position: '차장', task: '교육훈련', department: '인사팀', manager: '김인사부장' },
-            { id: '16', name: '홍회계차장', position: '차장', task: '회계업무', department: '재무팀', manager: '이재무부장' },
-            { id: '17', name: '김예산차장', position: '차장', task: '예산관리', department: '재무팀', manager: '이재무부장' },
+            // 전략기획실
+            { id: '7', name: '강병현', position: '팀장', task: '전략기획, 영업 부총괄', department: '전략기획실', manager: '박병도' },
+            { id: '8', name: '지윤환', position: '수습', task: '전략기획, 시스템', department: '전략기획실', manager: '강병현' },
             
-            // 과장급
-            { id: '18', name: '이리액트과장', position: '과장', task: 'React개발', department: '개발팀', manager: '박프론트차장' },
-            { id: '19', name: '최노드과장', position: '과장', task: 'Node.js개발', department: '개발팀', manager: '최백엔드차장' },
-            { id: '20', name: '홍안드로이드과장', position: '과장', task: 'Android개발', department: '개발팀', manager: '정모바일차장' },
-            { id: '21', name: '이SEO과장', position: '과장', task: 'SEO최적화', department: '마케팅팀', manager: '홍디지털차장' },
-            { id: '22', name: '최제품과장', position: '과장', task: '제품마케팅', department: '마케팅팀', manager: '김브랜드차장' },
-            { id: '23', name: '정기업과장', position: '과장', task: '기업영업', department: '영업팀', manager: '이B2B차장' },
-            { id: '24', name: '홍소매과장', position: '과장', task: '소매영업', department: '영업팀', manager: '박B2C차장' },
-            { id: '25', name: '김채용과장', position: '과장', task: '채용업무', department: '인사팀', manager: '최채용차장' },
-            { id: '26', name: '이회계과장', position: '과장', task: '회계처리', department: '재무팀', manager: '홍회계차장' },
+            // 경영관리실
+            { id: '9', name: '유은주', position: '과장', task: '회계 부총괄', department: '경영관리실', manager: '신선일' },
+            { id: '10', name: '정아린', position: '사원', task: '회계(아이베)', department: '경영관리실', manager: '유은주' },
+            { id: '11', name: '장주희', position: '사원', task: '회계(크로네)', department: '경영관리실', manager: '유은주' },
+            { id: '12', name: '박아휘', position: '사원', task: '회계(아이베)', department: '경영관리실', manager: '유은주' },
+            { id: '13', name: '최혁준', position: '사원', task: '총무,회계(몹스)', department: '경영관리실', manager: '유은주' },
             
-            // 대리급
-            { id: '27', name: '김프론트대리', position: '대리', task: '프론트엔드개발', department: '개발팀', manager: '이리액트과장' },
-            { id: '28', name: '이백엔드대리', position: '대리', task: '백엔드개발', department: '개발팀', manager: '최노드과장' },
-            { id: '29', name: '박모바일대리', position: '대리', task: '모바일개발', department: '개발팀', manager: '홍안드로이드과장' },
-            { id: '30', name: '최마케팅대리', position: '대리', task: '마케팅업무', department: '마케팅팀', manager: '이SEO과장' },
-            { id: '31', name: '정영업대리', position: '대리', task: '영업업무', department: '영업팀', manager: '정기업과장' },
-            { id: '32', name: '홍인사대리', position: '대리', task: '인사업무', department: '인사팀', manager: '김채용과장' },
-            { id: '33', name: '김재무대리', position: '대리', task: '재무업무', department: '재무팀', manager: '이회계과장' },
+            // 고객지원부
+            { id: '14', name: '신선주', position: '팀장', task: '고객응대 총괄', department: '고객지원부', manager: '강필구' },
+            { id: '15', name: '최이슬', position: '과장', task: '고객응대(직구)', department: '고객지원부', manager: '신선주' },
+            { id: '16', name: '박주영', position: '사원', task: '고객응대', department: '고객지원부', manager: '최이슬' },
+            { id: '17', name: '노가을', position: '수습', task: '고객응대', department: '고객지원부', manager: '최이슬' },
+            { id: '18', name: '장주현', position: '수습', task: '고객응대', department: '고객지원부', manager: '최이슬' },
+            { id: '19', name: '최윤민', position: '수습', task: '고객응대', department: '고객지원부', manager: '최이슬' },
             
-            // 사원급
-            { id: '34', name: '이개발사원1', position: '사원', task: '개발업무', department: '개발팀', manager: '김프론트대리' },
-            { id: '35', name: '박개발사원2', position: '사원', task: '개발업무', department: '개발팀', manager: '이백엔드대리' },
-            { id: '36', name: '정마케팅사원1', position: '사원', task: '마케팅업무', department: '마케팅팀', manager: '최마케팅대리' },
-            { id: '37', name: '홍영업사원1', position: '사원', task: '영업업무', department: '영업팀', manager: '정영업대리' },
-            { id: '38', name: '김인사사원1', position: '사원', task: '인사업무', department: '인사팀', manager: '홍인사대리' },
-            { id: '39', name: '이재무사원1', position: '사원', task: '재무업무', department: '재무팀', manager: '김재무대리' }
+            // 물류지원부 (남양주)
+            { id: '20', name: '고성철', position: '과장', task: '물류(남양주)', department: '물류지원부', manager: '신선희' },
+            { id: '21', name: '손선남', position: '과장', task: '물류(남양주)', department: '물류지원부', manager: '신선희' },
+            { id: '22', name: '백인호', position: '대리', task: '물류(남양주)', department: '물류지원부', manager: '고성철' },
+            { id: '23', name: '김종희', position: '사원', task: '물류(남양주)', department: '물류지원부', manager: '백인호' },
+            
+            // 브랜드사업부 - 드리미팀
+            { id: '24', name: '강병훈', position: '팀장', task: '드리미(백화점) 영업총괄', department: '브랜드사업부', manager: '김정준' },
+            { id: '25', name: '윤성규', position: '파트장', task: '드리미(전체) 영업총괄', department: '브랜드사업부', manager: '김정준' },
+            { id: '26', name: '이영우', position: '과장', task: '드리미(백화점) 영업부총괄', department: '브랜드사업부', manager: '강병훈' },
+            { id: '27', name: '설길호', position: '대리', task: '드리미(백화점) 영업', department: '브랜드사업부', manager: '이영우' },
+            { id: '28', name: '이윤경', position: '사원', task: '드리미(백화점) 영업', department: '브랜드사업부', manager: '설길호' },
+            { id: '29', name: '황재완', position: '대리', task: '드리미(온라인) 영업', department: '브랜드사업부', manager: '윤성규' },
+            { id: '30', name: '이수진', position: '주임', task: '드리미(온라인) 영업', department: '브랜드사업부', manager: '황재완' },
+            { id: '31', name: '조하정', position: '수습', task: '드리미(온라인) 영업', department: '브랜드사업부', manager: '황재완' },
+            { id: '32', name: '박민찬', position: '주임', task: '드리미 SCM', department: '브랜드사업부', manager: '윤성규' },
+            
+            // 브랜드사업부 - 압타밀팀
+            { id: '33', name: '김영훈', position: '파트장', task: '압타밀 영업총괄', department: '브랜드사업부', manager: '김정준' },
+            { id: '34', name: '송예진', position: '사원', task: '압타밀(온라인) 영업', department: '브랜드사업부', manager: '김영훈' },
+            { id: '35', name: '서정민', position: '사원', task: '압타밀(온라인) 영업', department: '브랜드사업부', manager: '김영훈' },
+            { id: '36', name: '이지혜', position: '사원', task: '압타밀 SCM/산후조리원', department: '브랜드사업부', manager: '김영훈' },
+            { id: '37', name: '박효진', position: '대리', task: '압타밀 SCM/직구', department: '브랜드사업부', manager: '김영훈' },
+            { id: '38', name: '신유정', position: '매니저', task: '압타밀(산후조리원) 영업', department: '브랜드사업부', manager: '김영훈' },
+            
+            // 브랜드사업부 - 기타
+            { id: '39', name: '조성익', position: '수습', task: '레이레이 영업외', department: '브랜드사업부', manager: '김정준' },
+            
+            // 브랜드사업부(M) - 마케팅
+            { id: '40', name: '김민욱', position: '팀장', task: '마케팅 전체 총괄', department: '브랜드사업부(M)', manager: '김정준' },
+            { id: '41', name: '지연아', position: '과장', task: '컨텐츠(디자인) 총괄', department: '브랜드사업부(M)', manager: '김민욱' },
+            { id: '42', name: '홍성수', position: '과장', task: '드리미 마케팅 부총괄', department: '브랜드사업부(M)', manager: '김민욱' },
+            { id: '43', name: '김예진', position: '과장', task: '브라이튼 마케팅', department: '브랜드사업부(M)', manager: '김민욱' },
+            
+            // 브랜드사업부(M) - 컨텐츠팀
+            { id: '44', name: '조예은', position: '대리', task: '컨텐츠(디자인)', department: '브랜드사업부(M)', manager: '지연아' },
+            { id: '45', name: '조민지', position: '주임', task: '컨텐츠(디자인)', department: '브랜드사업부(M)', manager: '지연아' },
+            { id: '46', name: '박규원', position: '사원', task: '컨텐츠(디자인)', department: '브랜드사업부(M)', manager: '지연아' },
+            
+            // 브랜드사업부(M) - 드리미 마케팅팀
+            { id: '47', name: '김정호', position: '대리', task: '드리미 마케팅', department: '브랜드사업부(M)', manager: '홍성수' },
+            { id: '48', name: '정성원', position: '주임', task: '드리미 마케팅', department: '브랜드사업부(M)', manager: '홍성수' },
+            { id: '49', name: '권도연', position: '주임', task: '드리미 마케팅', department: '브랜드사업부(M)', manager: '홍성수' },
+            { id: '50', name: '이다현', position: '사원', task: '드리미 마케팅', department: '브랜드사업부(M)', manager: '홍성수' },
+            { id: '51', name: '변해형', position: '수습', task: '드리미 마케팅', department: '브랜드사업부(M)', manager: '홍성수' },
+            
+            // 브랜드사업부(M) - 브라이튼 마케팅팀
+            { id: '52', name: '박지영', position: '대리', task: '브라이튼 마케팅', department: '브랜드사업부(M)', manager: '김예진' },
+            { id: '53', name: '최은영', position: '대리', task: '브라이튼 마케팅', department: '브랜드사업부(M)', manager: '김예진' },
+            
+            // 브랜드사업부(M) - 압타밀 마케팅팀
+            { id: '54', name: '김은정', position: '대리', task: '압타밀 마케팅', department: '브랜드사업부(M)', manager: '김민욱' },
+            { id: '55', name: '이산하', position: '사원', task: '압타밀 마케팅', department: '브랜드사업부(M)', manager: '김은정' },
+            { id: '56', name: '최아리찬', position: '사원', task: '압타밀 마케팅', department: '브랜드사업부(M)', manager: '김은정' },
+            { id: '57', name: '권재은', position: '사원', task: '압타밀 마케팅', department: '브랜드사업부(M)', manager: '김은정' },
+            { id: '58', name: '형성인', position: '사원', task: '압타밀 마케팅', department: '브랜드사업부(M)', manager: '김은정' },
+            { id: '59', name: '박종호', position: '수습', task: '압타밀 마케팅', department: '브랜드사업부(M)', manager: '김은정' },
+            { id: '60', name: '박시연', position: '수습', task: '압타밀 마케팅', department: '브랜드사업부(M)', manager: '김은정' },
+            { id: '61', name: '신선경', position: '사원', task: '압타밀 마케팅(재택)', department: '브랜드사업부(M)', manager: '김은정' },
+            
+            // 백화점판매팀
+            { id: '62', name: '김옥금', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
+            { id: '63', name: '백현주', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
+            { id: '64', name: '이남정', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '김옥금' },
+            { id: '65', name: '유락희', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '백현주' },
+            { id: '66', name: '손연하', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
+            { id: '67', name: '이명희', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
+            { id: '68', name: '이정아', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
+            { id: '69', name: '장재원', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '이명희' },
+            { id: '70', name: '염미경', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
+            { id: '71', name: '배여진', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '염미경' },
+            { id: '72', name: '박지우', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
+            { id: '73', name: '김희정', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '박지우' },
+            { id: '74', name: '정원화', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
+            { id: '75', name: '김경미', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
+            { id: '76', name: '신형묵', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
+            { id: '77', name: '이민선', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
+            { id: '78', name: '노숙경', position: '시니어(주5)', task: '드리미 백화점', department: '백화점판매팀', manager: '이민선' },
+            { id: '79', name: '박소현', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
+            { id: '80', name: '강효순', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '박소현' },
+            { id: '81', name: '안미경', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' }
         ];
 
         // CEO 보호 로직 적용
