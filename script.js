@@ -532,7 +532,7 @@ class OrgChartSystem {
             
             // 전략기획실
             { id: '7', name: '강병현', position: '팀장', task: '전략기획, 영업 부총괄', department: '전략기획실', manager: '박병도' },
-            { id: '8', name: '지윤환', position: '수습', task: '전략기획, 시스템', department: '전략기획실', manager: '강병현' },
+            { id: '8', name: '지윤환', position: '과장', task: '전략기획, 시스템', department: '전략기획실', manager: '강병현' },
             
             // 경영관리실
             { id: '9', name: '유은주', position: '과장', task: '회계 부총괄', department: '경영관리실', manager: '신선일' },
