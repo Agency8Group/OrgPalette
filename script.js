@@ -607,7 +607,7 @@ class OrgChartSystem {
             { id: '58', name: '형성인', position: '사원', task: '압타밀 마케팅', department: '브랜드사업부(M)', manager: '김은정' },
             { id: '59', name: '박종호', position: '수습', task: '압타밀 마케팅', department: '브랜드사업부(M)', manager: '김은정' },
             { id: '60', name: '박시연', position: '수습', task: '압타밀 마케팅', department: '브랜드사업부(M)', manager: '김은정' },
-            { id: '61', name: '신선경', position: '사원', task: '압타밀 마케팅(재택)', department: '브랜드사업부(M)', manager: '김은정' },
+            { id: '61', name: '신선경(재택)', position: '사원', task: '압타밀 마케팅(재택)', department: '브랜드사업부(M)', manager: '김은정' },
             
             // 백화점판매팀
             { id: '62', name: '김옥금', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
@@ -1194,6 +1194,7 @@ class OrgChartSystem {
         return {
             name: person.name,
             position: person.position,
+            task: person.task,
             department: person.department,
             type: 'person',
             children: children
@@ -1240,6 +1241,7 @@ class OrgChartSystem {
         return {
             name: person.name,
             position: person.position,
+            task: person.task,
             department: person.department,
             type: 'person',
             parentTeamColor: parentTeamColor,
