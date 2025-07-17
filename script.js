@@ -12,6 +12,7 @@ class OrgChartSystem {
         this.ceoInfo = {
             name: '강필구',
             position: '대표이사',
+            task: '전략기획',
             department: '경영진',
             manager: ''
         };
@@ -132,13 +133,13 @@ class OrgChartSystem {
 
         // 트리 레이아웃 설정 - 고정된 노드 간격 사용
         this.treeLayout = d3.tree()
-            .nodeSize([120, 100]) // 고정된 노드 크기 사용 (width, height)
+            .nodeSize([160, 140]) // 고정된 노드 크기 사용 (width, height)
             .separation((a, b) => {
                 // 고정된 간격 값 사용
                 if (a.data.type === 'team' || b.data.type === 'team') {
-                    return a.parent === b.parent ? 1.8 : 2.2;
+                    return a.parent === b.parent ? 1.0 : 2.5;
                 }
-                return a.parent === b.parent ? 1.0 : 1.5;
+                return a.parent === b.parent ? 1.5 : 2.0;
             });
     }
 
@@ -177,7 +178,8 @@ class OrgChartSystem {
         jsonData.forEach(row => {
             // 다양한 컬럼명 패턴 지원
             const name = row['이름'] || row['Name'] || row['성명'] || row['name'] || '';
-            const position = row['직책'] || row['Position'] || row['직급'] || row['position'] || '';
+            const position = row['직급'] || row['Position'] || row['직급'] || row['position'] || '';
+            const task = row['임무'] || row['Task'] || row['업무'] || row['task'] || '';
             const department = row['부서'] || row['Department'] || row['팀'] || row['department'] || '';
             const manager = row['상위자'] || row['Manager'] || row['상사'] || row['manager'] || '';
 
@@ -186,6 +188,7 @@ class OrgChartSystem {
                     id: this.generateId(),
                     name: name.trim(),
                     position: position.trim(),
+                    task: task.trim() || '일반업무',
                     department: department.trim(),
                     manager: manager.trim()
                 });
@@ -335,7 +338,8 @@ class OrgChartSystem {
         
         newRow.innerHTML = `
             <input type="text" placeholder="이름" class="name-input">
-            <input type="text" placeholder="직책" class="position-input">
+            <input type="text" placeholder="직급" class="position-input">
+            <input type="text" placeholder="임무" class="task-input">
             <input type="text" placeholder="부서" class="department-input">
             <input type="text" placeholder="상위자 (선택사항)" class="manager-input">
             <button type="button" class="add-row-btn">➕</button>
@@ -392,6 +396,7 @@ class OrgChartSystem {
         rows.forEach((row, index) => {
             const name = row.querySelector('.name-input').value.trim();
             const position = row.querySelector('.position-input').value.trim();
+            const task = row.querySelector('.task-input').value.trim();
             const department = row.querySelector('.department-input').value.trim();
             const manager = row.querySelector('.manager-input').value.trim();
             
@@ -417,7 +422,7 @@ class OrgChartSystem {
                 return;
             }
             
-            // CEO 직책 확인
+            // CEO 직급 확인
             const ceoPositions = ['대표이사', '대표', '사장', '회장', 'CEO', 'ceo'];
             const isCEO = ceoPositions.some(pos => 
                 position.toLowerCase().includes(pos.toLowerCase())
@@ -445,6 +450,7 @@ class OrgChartSystem {
                 id: this.generateId(),
                 name,
                 position,
+                task: task || '일반업무',
                 department: department || '일반',
                 manager
             });
@@ -484,7 +490,8 @@ class OrgChartSystem {
         this.elements.inputRows.innerHTML = `
             <div class="input-row" data-row="0">
                 <input type="text" placeholder="이름" class="name-input">
-                <input type="text" placeholder="직책" class="position-input">
+                <input type="text" placeholder="직급" class="position-input">
+                <input type="text" placeholder="임무" class="task-input">
                 <input type="text" placeholder="부서" class="department-input">
                 <input type="text" placeholder="상위자 (선택사항)" class="manager-input">
                 <button type="button" class="add-row-btn">➕</button>
@@ -517,52 +524,52 @@ class OrgChartSystem {
             { id: '1', ...this.ceoInfo },
             
             // 각 부서의 최고 책임자 (팀 노드가 생성되도록)
-            { id: '2', name: '최개발부장', position: '개발부장', department: '개발팀', manager: '강필구' },
-            { id: '3', name: '정마케팅부장', position: '마케팅부장', department: '마케팅팀', manager: '강필구' },
-            { id: '4', name: '홍영업부장', position: '영업부장', department: '영업팀', manager: '강필구' },
-            { id: '5', name: '김인사부장', position: '인사부장', department: '인사팀', manager: '강필구' },
-            { id: '6', name: '이재무부장', position: '재무부장', department: '재무팀', manager: '강필구' },
+            { id: '2', name: '최개발부장', position: '부장', task: '기술전략', department: '개발팀', manager: '강필구' },
+            { id: '3', name: '정마케팅부장', position: '부장', task: '마케팅전략', department: '마케팅팀', manager: '강필구' },
+            { id: '4', name: '홍영업부장', position: '부장', task: '영업전략', department: '영업팀', manager: '강필구' },
+            { id: '5', name: '김인사부장', position: '부장', task: '인사관리', department: '인사팀', manager: '강필구' },
+            { id: '6', name: '이재무부장', position: '부장', task: '재무관리', department: '재무팀', manager: '강필구' },
             
             // 차장급
-            { id: '7', name: '박프론트차장', position: '프론트엔드차장', department: '개발팀', manager: '최개발부장' },
-            { id: '8', name: '최백엔드차장', position: '백엔드차장', department: '개발팀', manager: '최개발부장' },
-            { id: '9', name: '정모바일차장', position: '모바일차장', department: '개발팀', manager: '최개발부장' },
-            { id: '10', name: '홍디지털차장', position: '디지털마케팅차장', department: '마케팅팀', manager: '정마케팅부장' },
-            { id: '11', name: '김브랜드차장', position: '브랜드차장', department: '마케팅팀', manager: '정마케팅부장' },
-            { id: '12', name: '이B2B차장', position: 'B2B영업차장', department: '영업팀', manager: '홍영업부장' },
-            { id: '13', name: '박B2C차장', position: 'B2C영업차장', department: '영업팀', manager: '홍영업부장' },
-            { id: '14', name: '최채용차장', position: '채용차장', department: '인사팀', manager: '김인사부장' },
-            { id: '15', name: '정교육차장', position: '교육차장', department: '인사팀', manager: '김인사부장' },
-            { id: '16', name: '홍회계차장', position: '회계차장', department: '재무팀', manager: '이재무부장' },
-            { id: '17', name: '김예산차장', position: '예산차장', department: '재무팀', manager: '이재무부장' },
+            { id: '7', name: '박프론트차장', position: '차장', task: '프론트엔드개발', department: '개발팀', manager: '최개발부장' },
+            { id: '8', name: '최백엔드차장', position: '차장', task: '백엔드개발', department: '개발팀', manager: '최개발부장' },
+            { id: '9', name: '정모바일차장', position: '차장', task: '모바일개발', department: '개발팀', manager: '최개발부장' },
+            { id: '10', name: '홍디지털차장', position: '차장', task: '디지털마케팅', department: '마케팅팀', manager: '정마케팅부장' },
+            { id: '11', name: '김브랜드차장', position: '차장', task: '브랜드관리', department: '마케팅팀', manager: '정마케팅부장' },
+            { id: '12', name: '이B2B차장', position: '차장', task: 'B2B영업', department: '영업팀', manager: '홍영업부장' },
+            { id: '13', name: '박B2C차장', position: '차장', task: 'B2C영업', department: '영업팀', manager: '홍영업부장' },
+            { id: '14', name: '최채용차장', position: '차장', task: '채용관리', department: '인사팀', manager: '김인사부장' },
+            { id: '15', name: '정교육차장', position: '차장', task: '교육훈련', department: '인사팀', manager: '김인사부장' },
+            { id: '16', name: '홍회계차장', position: '차장', task: '회계업무', department: '재무팀', manager: '이재무부장' },
+            { id: '17', name: '김예산차장', position: '차장', task: '예산관리', department: '재무팀', manager: '이재무부장' },
             
             // 과장급
-            { id: '18', name: '이리액트과장', position: 'React개발과장', department: '개발팀', manager: '박프론트차장' },
-            { id: '19', name: '최노드과장', position: 'Node.js과장', department: '개발팀', manager: '최백엔드차장' },
-            { id: '20', name: '홍안드로이드과장', position: 'Android과장', department: '개발팀', manager: '정모바일차장' },
-            { id: '21', name: '이SEO과장', position: 'SEO과장', department: '마케팅팀', manager: '홍디지털차장' },
-            { id: '22', name: '최제품과장', position: '제품마케팅과장', department: '마케팅팀', manager: '김브랜드차장' },
-            { id: '23', name: '정기업과장', position: '기업영업과장', department: '영업팀', manager: '이B2B차장' },
-            { id: '24', name: '홍소매과장', position: '소매영업과장', department: '영업팀', manager: '박B2C차장' },
-            { id: '25', name: '김채용과장', position: '채용과장', department: '인사팀', manager: '최채용차장' },
-            { id: '26', name: '이회계과장', position: '회계과장', department: '재무팀', manager: '홍회계차장' },
+            { id: '18', name: '이리액트과장', position: '과장', task: 'React개발', department: '개발팀', manager: '박프론트차장' },
+            { id: '19', name: '최노드과장', position: '과장', task: 'Node.js개발', department: '개발팀', manager: '최백엔드차장' },
+            { id: '20', name: '홍안드로이드과장', position: '과장', task: 'Android개발', department: '개발팀', manager: '정모바일차장' },
+            { id: '21', name: '이SEO과장', position: '과장', task: 'SEO최적화', department: '마케팅팀', manager: '홍디지털차장' },
+            { id: '22', name: '최제품과장', position: '과장', task: '제품마케팅', department: '마케팅팀', manager: '김브랜드차장' },
+            { id: '23', name: '정기업과장', position: '과장', task: '기업영업', department: '영업팀', manager: '이B2B차장' },
+            { id: '24', name: '홍소매과장', position: '과장', task: '소매영업', department: '영업팀', manager: '박B2C차장' },
+            { id: '25', name: '김채용과장', position: '과장', task: '채용업무', department: '인사팀', manager: '최채용차장' },
+            { id: '26', name: '이회계과장', position: '과장', task: '회계처리', department: '재무팀', manager: '홍회계차장' },
             
             // 대리급
-            { id: '27', name: '김프론트대리', position: '프론트엔드대리', department: '개발팀', manager: '이리액트과장' },
-            { id: '28', name: '이백엔드대리', position: '백엔드대리', department: '개발팀', manager: '최노드과장' },
-            { id: '29', name: '박모바일대리', position: '모바일대리', department: '개발팀', manager: '홍안드로이드과장' },
-            { id: '30', name: '최마케팅대리', position: '마케팅대리', department: '마케팅팀', manager: '이SEO과장' },
-            { id: '31', name: '정영업대리', position: '영업대리', department: '영업팀', manager: '정기업과장' },
-            { id: '32', name: '홍인사대리', position: '인사대리', department: '인사팀', manager: '김채용과장' },
-            { id: '33', name: '김재무대리', position: '재무대리', department: '재무팀', manager: '이회계과장' },
+            { id: '27', name: '김프론트대리', position: '대리', task: '프론트엔드개발', department: '개발팀', manager: '이리액트과장' },
+            { id: '28', name: '이백엔드대리', position: '대리', task: '백엔드개발', department: '개발팀', manager: '최노드과장' },
+            { id: '29', name: '박모바일대리', position: '대리', task: '모바일개발', department: '개발팀', manager: '홍안드로이드과장' },
+            { id: '30', name: '최마케팅대리', position: '대리', task: '마케팅업무', department: '마케팅팀', manager: '이SEO과장' },
+            { id: '31', name: '정영업대리', position: '대리', task: '영업업무', department: '영업팀', manager: '정기업과장' },
+            { id: '32', name: '홍인사대리', position: '대리', task: '인사업무', department: '인사팀', manager: '김채용과장' },
+            { id: '33', name: '김재무대리', position: '대리', task: '재무업무', department: '재무팀', manager: '이회계과장' },
             
             // 사원급
-            { id: '34', name: '이개발사원1', position: '개발사원', department: '개발팀', manager: '김프론트대리' },
-            { id: '35', name: '박개발사원2', position: '개발사원', department: '개발팀', manager: '이백엔드대리' },
-            { id: '36', name: '정마케팅사원1', position: '마케팅사원', department: '마케팅팀', manager: '최마케팅대리' },
-            { id: '37', name: '홍영업사원1', position: '영업사원', department: '영업팀', manager: '정영업대리' },
-            { id: '38', name: '김인사사원1', position: '인사사원', department: '인사팀', manager: '홍인사대리' },
-            { id: '39', name: '이재무사원1', position: '재무사원', department: '재무팀', manager: '김재무대리' }
+            { id: '34', name: '이개발사원1', position: '사원', task: '개발업무', department: '개발팀', manager: '김프론트대리' },
+            { id: '35', name: '박개발사원2', position: '사원', task: '개발업무', department: '개발팀', manager: '이백엔드대리' },
+            { id: '36', name: '정마케팅사원1', position: '사원', task: '마케팅업무', department: '마케팅팀', manager: '최마케팅대리' },
+            { id: '37', name: '홍영업사원1', position: '사원', task: '영업업무', department: '영업팀', manager: '정영업대리' },
+            { id: '38', name: '김인사사원1', position: '사원', task: '인사업무', department: '인사팀', manager: '홍인사대리' },
+            { id: '39', name: '이재무사원1', position: '사원', task: '재무업무', department: '재무팀', manager: '김재무대리' }
         ];
 
         // CEO 보호 로직 적용
@@ -636,6 +643,7 @@ class OrgChartSystem {
         if (ceo) {
             ceo.name = this.ceoInfo.name;
             ceo.position = this.ceoInfo.position;
+            ceo.task = this.ceoInfo.task;
             ceo.department = this.ceoInfo.department;
             ceo.manager = this.ceoInfo.manager;
         }
@@ -670,6 +678,7 @@ class OrgChartSystem {
         
         const newName = editDiv.querySelector('.edit-name').value.trim();
         const newPosition = editDiv.querySelector('.edit-position').value.trim();
+        const newTask = editDiv.querySelector('.edit-task').value.trim();
         const newDepartment = editDiv.querySelector('.edit-department').value.trim();
         const newManager = editDiv.querySelector('.edit-manager').value.trim();
 
@@ -714,6 +723,7 @@ class OrgChartSystem {
         // 정보 업데이트
         person.name = newName;
         person.position = newPosition;
+        person.task = newTask || '일반업무';
         person.department = newDepartment;
         person.manager = newManager;
 
@@ -783,7 +793,8 @@ class OrgChartSystem {
         // 엑셀 데이터 준비
         const excelData = this.people.map(person => ({
             '이름': person.name,
-            '직책': person.position,
+            '직급': person.position,
+            '임무': person.task,
             '부서': person.department,
             '상위자': person.manager,
             '하위자 수': this.people.filter(p => p.manager === person.name).length,
@@ -798,7 +809,8 @@ class OrgChartSystem {
         // 컬럼 너비 조정
         const wscols = [
             { width: 15 }, // 이름
-            { width: 20 }, // 직책
+            { width: 20 }, // 직급
+            { width: 15 }, // 임무
             { width: 15 }, // 부서
             { width: 15 }, // 상위자
             { width: 10 }, // 하위자 수
@@ -940,13 +952,15 @@ class OrgChartSystem {
                 <div class="person-display" data-id="${person.id}">
                     <div class="name">${person.name}${isCEO ? ' 👑' : ''}</div>
                     <div class="position">${person.position}</div>
+                    <div class="task">${person.task}</div>
                     <div class="department">${person.department}</div>
                     ${person.manager ? `<div class="manager">상위자: ${person.manager}</div>` : ''}
                     ${actionButtons}
                 </div>
                 <div class="person-edit" data-id="${person.id}" style="display: none;">
                     <input type="text" class="edit-name" value="${person.name}" placeholder="이름">
-                    <input type="text" class="edit-position" value="${person.position}" placeholder="직책">
+                    <input type="text" class="edit-position" value="${person.position}" placeholder="직급">
+                    <input type="text" class="edit-task" value="${person.task}" placeholder="임무">
                     <input type="text" class="edit-department" value="${person.department}" placeholder="부서">
                     <input type="text" class="edit-manager" value="${person.manager}" placeholder="상위자">
                     <div class="action-buttons">
@@ -1011,7 +1025,7 @@ class OrgChartSystem {
         // 개인 노드 (원형) - CEO는 더 크게
         nodes.filter(d => d.data.type === 'person')
             .append('circle')
-            .attr('r', d => this.isCEO(d.data) ? 45 : 30)
+            .attr('r', d => this.isCEO(d.data) ? 55 : 40)
             .style('fill', d => this.getPersonColor(d.data))
             .style('stroke', d => this.getPersonStrokeColor(d.data))
             .style('stroke-width', d => this.isCEO(d.data) ? 3 : 2);
@@ -1021,6 +1035,7 @@ class OrgChartSystem {
             .append('text')
             .attr('dy', '0.3em')
             .style('text-anchor', 'middle')
+            .style('dominant-baseline', 'middle')
             .style('font-size', '16px')
             .style('fill', d => {
                 const backgroundColor = d.data.teamColor || this.getTeamColor(d.data.department);
@@ -1037,12 +1052,12 @@ class OrgChartSystem {
             })
             .text(d => d.data.name);
 
-        // CEO 왕관 텍스트 (맨 위)
+        // CEO 왕관 텍스트 (맨 위) - 5px 아래로
         nodes.filter(d => d.data.type === 'person' && this.isCEO(d.data))
             .append('text')
             .attr('dy', '-1.8em')
             .style('text-anchor', 'middle')
-            .style('font-size', '18px')
+            .style('font-size', '20px')
             .style('fill', '#ffd700')
             .style('text-shadow', '2px 2px 4px rgba(0,0,0,0.5)')
             .text('👑');
@@ -1050,23 +1065,36 @@ class OrgChartSystem {
         // 개인 이름 텍스트 - CEO는 더 크게
         nodes.filter(d => d.data.type === 'person')
             .append('text')
-            .attr('dy', d => this.isCEO(d.data) ? '-0.5em' : '-0.3em')
+            .attr('dy', d => this.isCEO(d.data) ? '-0.8em' : '-1.5em')
             .style('text-anchor', 'middle')
-            .style('font-size', d => this.isCEO(d.data) ? '14px' : '11px')
+            .style('dominant-baseline', 'middle')
+            .style('font-size', d => this.isCEO(d.data) ? '16px' : '12px')
             .style('fill', 'white')
             .style('font-weight', 'bold')
             .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
             .text(d => d.data.name);
 
-        // 개인 직책 텍스트 - CEO는 더 크게
+        // 개인 직급 텍스트 - CEO는 더 크게 (CEO는 임무가 없으므로 중앙에 위치)
         nodes.filter(d => d.data.type === 'person')
             .append('text')
-            .attr('dy', d => this.isCEO(d.data) ? '0.8em' : '0.8em')
+            .attr('dy', d => this.isCEO(d.data) ? '1.2em' : '-0.2em')
             .style('text-anchor', 'middle')
-            .style('font-size', d => this.isCEO(d.data) ? '12px' : '9px')
+            .style('dominant-baseline', 'middle')
+            .style('font-size', d => this.isCEO(d.data) ? '14px' : '10px')
             .style('fill', '#e2e8f0')
             .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
             .text(d => d.data.position);
+
+        // 개인 임무 텍스트 - CEO는 표시 안함
+        nodes.filter(d => d.data.type === 'person' && !this.isCEO(d.data))
+            .append('text')
+            .attr('dy', '1.8em')
+            .style('text-anchor', 'middle')
+            .style('dominant-baseline', 'middle')
+            .style('font-size', '9px')
+            .style('fill', '#90cdf4')
+            .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
+            .text(d => d.data.task || '일반업무');
 
         // 차트 중앙 정렬 (초기 로드가 아닌 경우에만)
         // setTimeout을 사용해 DOM 업데이트 후 실행

@@ -444,6 +444,13 @@ header p {
     margin-bottom: 3px;
 }
 
+.person-item .task {
+    color: #38a169;
+    font-size: 0.85em;
+    margin-bottom: 3px;
+    font-weight: 500;
+}
+
 .person-item .department {
     color: #718096;
     font-size: 0.85em;
@@ -578,6 +585,12 @@ header p {
     font-size: 0.95em;
 }
 
+.ceo-item .task {
+    color: #a0621a;
+    font-weight: 500;
+    font-size: 0.85em;
+}
+
 .ceo-item .department {
     color: #a0621a;
     font-weight: 500;
@@ -665,7 +678,7 @@ header p {
     fill: #5a67d8;
     stroke: #3c366b;
     stroke-width: 3;
-    r: 35;
+    r: 45;
 }
 
 .node.team rect {
