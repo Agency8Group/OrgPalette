@@ -8,6 +8,24 @@ class OrgChartSystem {
         this.teamColors = new Map(); // 팀별 색상 캐시
         this.usedColors = new Set(); // 사용된 색상 추적
         
+        // 자리배치도 관련 속성들
+        this.currentTab = 'org-chart';
+        this.seatGrid = [];
+        this.selectedSeats = new Set();
+        this.teamCards = [];
+        this.isSelecting = false;
+        this.dragStartSeat = null;
+        this.gridCols = 10;
+        this.gridRows = 8;
+        this.seatZoom = 1;
+        this.seatPanX = 0;
+        this.seatPanY = 0;
+        
+        // 상호작용 모드 관련 속성들
+        this.interactionMode = 'selection-only';
+        this.clickMoveSource = null;
+        this.contextMenu = null;
+        
         // 강필구 대표이사님 기본 정보
         this.ceoInfo = {
             name: '강필구',
@@ -20,16 +38,20 @@ class OrgChartSystem {
         this.initializeElements();
         this.setupEventListeners();
         this.initializeD3();
+        this.initializeSeatGrid();
         
         // 자동 저장 데이터 확인 후 로드
         this.initializeData();
+        
+        // 초기 상태 설정: 좌석 선택 모드 활성화
+        this.handleInteractionModeChange({ target: { value: 'selection-only' } });
     }
 
     initializeData() {
         // 자동 저장 데이터 확인
         const autoSaveData = this.loadFromAutoSave();
         
-                if (autoSaveData.length > 0) {
+        if (autoSaveData.length > 0) {
             this.people = autoSaveData;
             this.ensureCEOExists();
             this.enforceCEODefaults();
@@ -50,6 +72,7 @@ class OrgChartSystem {
 
     initializeElements() {
         this.elements = {
+            // 기존 조직도 관련 요소들
             excelUpload: document.getElementById('excel-upload'),
             sampleDataBtn: document.getElementById('sample-data-btn'),
             inputRows: document.getElementById('input-rows'),
@@ -58,7 +81,6 @@ class OrgChartSystem {
             clearAllBtn: document.getElementById('clear-all-btn'),
             exportExcelBtn: document.getElementById('export-excel-btn'),
             exportPdfBtn: document.getElementById('export-pdf-btn'),
-            exportPdfHqBtn: document.getElementById('export-pdf-hq-btn'),
             peopleList: document.getElementById('people-list'),
             orgChart: document.getElementById('org-chart'),
             statusMessage: document.getElementById('status-message'),
@@ -70,7 +92,45 @@ class OrgChartSystem {
             fitViewBtn: document.getElementById('fit-view-btn'),
             confirmModal: document.getElementById('confirm-modal'),
             confirmYes: document.getElementById('confirm-yes'),
-            confirmNo: document.getElementById('confirm-no')
+            confirmNo: document.getElementById('confirm-no'),
+            
+            // 탭 시스템 관련 요소들
+            tabBtns: document.querySelectorAll('.tab-btn'),
+            orgChartTab: document.getElementById('org-chart-tab'),
+            seatLayoutTab: document.getElementById('seat-layout-tab'),
+            
+            // 자리배치도 관련 요소들
+            gridCols: document.getElementById('grid-cols'),
+            gridRows: document.getElementById('grid-rows'),
+            applyGridBtn: document.getElementById('apply-grid-btn'),
+            clearSelectionBtn: document.getElementById('clear-selection-btn'),
+            assignTeamBtn: document.getElementById('assign-team-btn'),
+            saveLayoutBtn: document.getElementById('save-layout-btn'),
+            loadLayoutBtn: document.getElementById('load-layout-btn'),
+            seatGrid: document.getElementById('seat-grid'),
+            teamCardsList: document.getElementById('team-cards-list'),
+            seatInfo: document.getElementById('seat-info'),
+            seatZoomInBtn: document.getElementById('seat-zoom-in-btn'),
+            seatZoomOutBtn: document.getElementById('seat-zoom-out-btn'),
+            seatResetZoomBtn: document.getElementById('seat-reset-zoom-btn'),
+            seatCenterBtn: document.getElementById('seat-center-btn'),
+            
+            // 팀 할당 팝업 관련 요소들
+            teamAssignModal: document.getElementById('team-assign-modal'),
+            teamDropdown: document.getElementById('team-dropdown'),
+            teamMemberCount: document.getElementById('team-member-count'),
+            teamMembersPreview: document.getElementById('team-members-preview'),
+            customTeamNameInput: document.getElementById('custom-team-name-input'),
+            teamMembersList: document.getElementById('team-members-list'),
+            selectedSeatsCount: document.getElementById('selected-seats-count'),
+            seatTeamMatch: document.getElementById('seat-team-match'),
+            teamModeSection: document.getElementById('team-mode-section'),
+            individualModeSection: document.getElementById('individual-mode-section'),
+            teamAssignCancel: document.getElementById('team-assign-cancel'),
+            teamAssignConfirm: document.getElementById('team-assign-confirm'),
+            
+            // 자리배치도 PDF 내보내기 버튼
+            exportSeatPdfBtn: document.getElementById('export-seat-pdf-btn')
         };
         
         // 입력 행 카운터
@@ -78,14 +138,14 @@ class OrgChartSystem {
     }
 
     setupEventListeners() {
+        // 기존 조직도 관련 이벤트 리스너들
         this.elements.excelUpload.addEventListener('change', (e) => this.handleExcelUpload(e));
         this.elements.sampleDataBtn.addEventListener('click', () => this.loadSampleData());
         this.elements.addAllBtn.addEventListener('click', () => this.addAllPeople());
         this.elements.clearInputsBtn.addEventListener('click', () => this.clearInputs());
         this.elements.clearAllBtn.addEventListener('click', () => this.clearAll());
         this.elements.exportExcelBtn.addEventListener('click', () => this.exportToExcel());
-        this.elements.exportPdfBtn.addEventListener('click', () => this.exportToPDF(false));
-        this.elements.exportPdfHqBtn.addEventListener('click', () => this.exportToPDF(true));
+        this.elements.exportPdfBtn.addEventListener('click', () => this.exportToPDF(true));
         this.elements.zoomInBtn.addEventListener('click', () => this.zoomIn());
         this.elements.zoomOutBtn.addEventListener('click', () => this.zoomOut());
         this.elements.resetZoomBtn.addEventListener('click', () => this.resetZoom());
@@ -102,10 +162,1242 @@ class OrgChartSystem {
                 this.hideConfirmModal();
             }
         });
+        
+        // 탭 시스템 이벤트 리스너
+        this.elements.tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
+        });
+        
+        // 자리배치도 관련 이벤트 리스너들
+        this.elements.applyGridBtn.addEventListener('click', () => this.applyGridSettings());
+        this.elements.clearSelectionBtn.addEventListener('click', () => this.clearSeatSelection());
+        this.elements.assignTeamBtn.addEventListener('click', () => this.showTeamAssignModal());
+        this.elements.saveLayoutBtn.addEventListener('click', () => this.saveLayout());
+        this.elements.loadLayoutBtn.addEventListener('click', () => this.loadLayout());
+        this.elements.seatZoomInBtn.addEventListener('click', () => this.seatZoomIn());
+        this.elements.seatZoomOutBtn.addEventListener('click', () => this.seatZoomOut());
+        this.elements.seatResetZoomBtn.addEventListener('click', () => this.resetSeatZoom());
+        this.elements.seatCenterBtn.addEventListener('click', () => this.centerSeatView());
+        this.elements.exportSeatPdfBtn.addEventListener('click', () => this.exportSeatLayoutToPDF());
+        
+        // 자리배치도 마우스 드래그 패닝 이벤트
+        this.setupSeatPanning();
+        
+        // 팀 할당 팝업 이벤트
+        this.elements.teamAssignCancel.addEventListener('click', () => this.hideTeamAssignModal());
+        this.elements.teamAssignConfirm.addEventListener('click', () => this.confirmTeamAssign());
+        this.elements.teamAssignModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.teamAssignModal) {
+                this.hideTeamAssignModal();
+            }
+        });
 
         // 동적 입력 행 이벤트 (이벤트 위임)
         this.elements.inputRows.addEventListener('click', (e) => this.handleRowButtonClick(e));
         this.elements.inputRows.addEventListener('keypress', (e) => this.handleRowKeyPress(e));
+        
+        // 선택 모드 변경 이벤트
+        document.querySelectorAll('input[name="selection-mode"]').forEach(radio => {
+            radio.addEventListener('change', (e) => this.handleSelectionModeChange(e));
+        });
+        
+        // 상호작용 모드 변경 이벤트
+        document.querySelectorAll('input[name="interaction-mode"]').forEach(radio => {
+            radio.addEventListener('change', (e) => this.handleInteractionModeChange(e));
+        });
+        
+        // 할당 방식 변경 이벤트
+        document.querySelectorAll('input[name="assign-mode"]').forEach(radio => {
+            radio.addEventListener('change', (e) => this.handleAssignModeChange(e));
+        });
+        
+        // 팀 드롭다운 변경 이벤트
+        this.elements.teamDropdown.addEventListener('change', (e) => this.handleTeamDropdownChange(e));
+        
+        // 전역 클릭 이벤트 (컨텍스트 메뉴 닫기)
+        document.addEventListener('click', (e) => this.handleGlobalClick(e));
+    }
+
+    // 탭 전환 기능
+    switchTab(tabName) {
+        this.currentTab = tabName;
+        
+        // 탭 버튼 활성화 상태 변경
+        this.elements.tabBtns.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+        
+        // 탭 콘텐츠 표시/숨김
+        this.elements.orgChartTab.classList.toggle('active', tabName === 'org-chart');
+        this.elements.seatLayoutTab.classList.toggle('active', tabName === 'seat-layout');
+        
+        // 자리배치도 탭으로 전환 시 격자 업데이트
+        if (tabName === 'seat-layout') {
+            this.updateSeatGrid();
+            this.updateTeamCardsList();
+        }
+    }
+
+    // 자리배치도 격자 초기화
+    initializeSeatGrid() {
+        this.seatGrid = [];
+        for (let row = 0; row < this.gridRows; row++) {
+            this.seatGrid[row] = [];
+            for (let col = 0; col < this.gridCols; col++) {
+                this.seatGrid[row][col] = {
+                    row: row,
+                    col: col,
+                    id: `seat-${row}-${col}`,
+                    occupied: false,
+                    person: null,
+                    teamCard: null,
+                    selected: false
+                };
+            }
+        }
+    }
+
+    // 격자 설정 적용
+    applyGridSettings() {
+        const newCols = parseInt(this.elements.gridCols.value);
+        const newRows = parseInt(this.elements.gridRows.value);
+        
+        if (newCols < 5 || newCols > 50 || newRows < 5 || newRows > 50) {
+            alert('격자 크기는 5x5에서 50x50 사이여야 합니다.');
+            return;
+        }
+        
+        this.gridCols = newCols;
+        this.gridRows = newRows;
+        this.initializeSeatGrid();
+        this.updateSeatGrid();
+        this.updateStatus(`격자가 ${this.gridCols}x${this.gridRows}로 변경되었습니다.`);
+    }
+
+    // 자리배치도 격자 업데이트
+    updateSeatGrid() {
+        const gridContainer = this.elements.seatGrid;
+        gridContainer.innerHTML = '';
+        
+        // CSS 그리드 열 설정
+        gridContainer.style.gridTemplateColumns = `repeat(${this.gridCols}, 1fr)`;
+        
+        // 좌석 생성
+        for (let row = 0; row < this.gridRows; row++) {
+            for (let col = 0; col < this.gridCols; col++) {
+                const seat = this.seatGrid[row][col];
+                const seatElement = this.createSeatElement(seat);
+                gridContainer.appendChild(seatElement);
+            }
+        }
+        
+        // 좌석 선택 이벤트 설정
+        this.setupSeatEvents();
+    }
+
+    // 좌석 요소 생성
+    createSeatElement(seat) {
+        const seatElement = document.createElement('div');
+        seatElement.className = 'seat';
+        seatElement.dataset.row = seat.row;
+        seatElement.dataset.col = seat.col;
+        seatElement.dataset.id = seat.id;
+        
+        // 좌석 라벨 (좌표)
+        const label = document.createElement('div');
+        label.className = 'seat-label';
+        label.textContent = `${seat.row + 1}-${seat.col + 1}`;
+        seatElement.appendChild(label);
+        
+        // 좌석 상태에 따른 클래스 추가
+        if (seat.occupied && seat.person) {
+            seatElement.classList.add('occupied');
+            
+            // 개별 팀원 정보 표시
+            const personDiv = document.createElement('div');
+            personDiv.className = 'seat-person';
+            
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'person-name';
+            nameDiv.textContent = seat.person.name;
+            
+            const positionDiv = document.createElement('div');
+            positionDiv.className = 'person-position';
+            positionDiv.textContent = seat.person.position;
+            
+            personDiv.appendChild(nameDiv);
+            personDiv.appendChild(positionDiv);
+            seatElement.appendChild(personDiv);
+            
+            // 드래그 가능하게 설정 (드래그 앤 드롭 모드일 때만)
+            seatElement.draggable = (this.interactionMode === 'drag-drop');
+            
+        } else if (seat.teamCard) {
+            seatElement.classList.add('team-assigned');
+            const teamDiv = document.createElement('div');
+            teamDiv.className = 'seat-person';
+            teamDiv.textContent = '빈 좌석';
+            seatElement.appendChild(teamDiv);
+        }
+        
+        if (seat.selected) {
+            seatElement.classList.add('selected');
+        }
+        
+        return seatElement;
+    }
+
+    // 좌석 이벤트 설정
+    setupSeatEvents() {
+        const seats = this.elements.seatGrid.querySelectorAll('.seat');
+        
+        seats.forEach(seat => {
+            seat.addEventListener('click', (e) => this.handleSeatClick(e));
+            seat.addEventListener('contextmenu', (e) => this.handleSeatContextMenu(e));
+            seat.addEventListener('mousedown', (e) => this.handleSeatMouseDown(e));
+            seat.addEventListener('mouseenter', (e) => this.handleSeatMouseEnter(e));
+            seat.addEventListener('mouseup', (e) => this.handleSeatMouseUp(e));
+            
+            // 드래그 앤 드롭 이벤트
+            seat.addEventListener('dragstart', (e) => this.handleSeatDragStart(e));
+            seat.addEventListener('dragend', (e) => this.handleSeatDragEnd(e));
+            seat.addEventListener('dragover', (e) => this.handleSeatDragOver(e));
+            seat.addEventListener('drop', (e) => this.handleSeatDrop(e));
+            seat.addEventListener('dragenter', (e) => this.handleSeatDragEnter(e));
+            seat.addEventListener('dragleave', (e) => this.handleSeatDragLeave(e));
+        });
+        
+        // 전역 마우스 이벤트
+        document.addEventListener('mouseup', () => this.handleGlobalMouseUp());
+    }
+
+    // 좌석 클릭 처리
+    handleSeatClick(event) {
+        const seatElement = event.currentTarget;
+        const row = parseInt(seatElement.dataset.row);
+        const col = parseInt(seatElement.dataset.col);
+        const seat = this.seatGrid[row][col];
+        
+        // 컨텍스트 메뉴 닫기
+        this.hideContextMenu();
+        
+        const selectionMode = document.querySelector('input[name="selection-mode"]:checked').value;
+        const interactionMode = document.querySelector('input[name="interaction-mode"]:checked').value;
+        
+        // 상호작용 모드에 따른 처리
+        if (interactionMode === 'click-move' && seat.occupied && seat.person) {
+            this.handleClickMove(seat, seatElement);
+            return;
+        }
+        
+        // 기본 좌석 선택 처리
+        if (selectionMode === 'single') {
+            // 단일 선택 모드
+            this.clearSeatSelection();
+            this.selectSeat(seat);
+        } else {
+            // 다중 선택 모드
+            this.toggleSeatSelection(seat);
+        }
+        
+        this.updateSeatInfo();
+        this.updateSelectedSeatsCount();
+    }
+
+    // 좌석 마우스 다운 처리 (드래그 시작)
+    handleSeatMouseDown(event) {
+        const selectionMode = document.querySelector('input[name="selection-mode"]:checked').value;
+        
+        if (selectionMode === 'multiple') {
+            event.preventDefault();
+            this.isSelecting = true;
+            const seatElement = event.currentTarget;
+            const row = parseInt(seatElement.dataset.row);
+            const col = parseInt(seatElement.dataset.col);
+            this.dragStartSeat = { row, col };
+        }
+    }
+
+    // 좌석 마우스 진입 처리 (드래그 중)
+    handleSeatMouseEnter(event) {
+        if (this.isSelecting && this.dragStartSeat) {
+            const seatElement = event.currentTarget;
+            const row = parseInt(seatElement.dataset.row);
+            const col = parseInt(seatElement.dataset.col);
+            
+            this.selectSeatRange(this.dragStartSeat, { row, col });
+        }
+    }
+
+    // 좌석 마우스 업 처리 (드래그 종료)
+    handleSeatMouseUp(event) {
+        this.isSelecting = false;
+        this.dragStartSeat = null;
+        this.updateSeatInfo();
+        this.updateSelectedSeatsCount();
+    }
+
+    // 전역 마우스 업 처리
+    handleGlobalMouseUp() {
+        this.isSelecting = false;
+        this.dragStartSeat = null;
+    }
+
+    // 드래그 시작 처리
+    handleSeatDragStart(event) {
+        // 드래그 앤 드롭 모드가 아니면 드래그 방지
+        if (this.interactionMode !== 'drag-drop') {
+            event.preventDefault();
+            return;
+        }
+        
+        const seatElement = event.currentTarget;
+        const row = parseInt(seatElement.dataset.row);
+        const col = parseInt(seatElement.dataset.col);
+        const seat = this.seatGrid[row][col];
+        
+        // 팀원이 할당된 좌석만 드래그 가능
+        if (!seat.occupied || !seat.person) {
+            event.preventDefault();
+            return;
+        }
+        
+        seatElement.classList.add('dragging');
+        event.dataTransfer.setData('text/plain', JSON.stringify({
+            row: row,
+            col: col,
+            seatId: seat.id
+        }));
+        
+        this.updateStatus(`${seat.person.name}님을 이동 중...`);
+    }
+
+    // 드래그 종료 처리
+    handleSeatDragEnd(event) {
+        const seatElement = event.currentTarget;
+        seatElement.classList.remove('dragging');
+        
+        // 모든 드롭 표시 제거
+        this.elements.seatGrid.querySelectorAll('.seat').forEach(seat => {
+            seat.classList.remove('drop-target', 'drop-invalid');
+        });
+    }
+
+    // 드래그 오버 처리
+    handleSeatDragOver(event) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+    }
+
+    // 드래그 진입 처리
+    handleSeatDragEnter(event) {
+        const seatElement = event.currentTarget;
+        const row = parseInt(seatElement.dataset.row);
+        const col = parseInt(seatElement.dataset.col);
+        const seat = this.seatGrid[row][col];
+        
+        // 드롭 가능한 좌석인지 확인
+        if (this.canDropOnSeat(seat)) {
+            seatElement.classList.add('drop-target');
+        } else {
+            seatElement.classList.add('drop-invalid');
+        }
+    }
+
+    // 드래그 떠남 처리
+    handleSeatDragLeave(event) {
+        const seatElement = event.currentTarget;
+        seatElement.classList.remove('drop-target', 'drop-invalid');
+    }
+
+    // 드롭 처리
+    handleSeatDrop(event) {
+        event.preventDefault();
+        
+        const targetSeatElement = event.currentTarget;
+        const targetRow = parseInt(targetSeatElement.dataset.row);
+        const targetCol = parseInt(targetSeatElement.dataset.col);
+        const targetSeat = this.seatGrid[targetRow][targetCol];
+        
+        try {
+            const dragData = JSON.parse(event.dataTransfer.getData('text/plain'));
+            const sourceSeat = this.seatGrid[dragData.row][dragData.col];
+            
+            // 드롭 가능한지 확인
+            if (!this.canDropOnSeat(targetSeat)) {
+                this.updateStatus('해당 좌석으로 이동할 수 없습니다.');
+                return;
+            }
+            
+            // 좌석 교체 실행
+            this.swapSeats(sourceSeat, targetSeat);
+            
+            this.updateStatus(`${sourceSeat.person ? sourceSeat.person.name : '팀원'}님이 이동했습니다.`);
+            
+        } catch (error) {
+            console.error('드롭 처리 오류:', error);
+            this.updateStatus('좌석 이동 중 오류가 발생했습니다.');
+        }
+    }
+
+    // 드롭 가능한 좌석인지 확인
+    canDropOnSeat(targetSeat) {
+        // 같은 팀 카드 내에서만 이동 가능
+        return targetSeat.teamCard !== null;
+    }
+
+    // 좌석 교체
+    swapSeats(seat1, seat2) {
+        // 두 좌석의 팀원 정보 교체
+        const tempPerson = seat1.person;
+        const tempOccupied = seat1.occupied;
+        
+        seat1.person = seat2.person;
+        seat1.occupied = seat2.occupied;
+        
+        seat2.person = tempPerson;
+        seat2.occupied = tempOccupied;
+        
+        // 좌석 그리드 재렌더링
+        this.updateSeatGrid();
+    }
+
+    // 클릭 이동 처리
+    handleClickMove(seat, seatElement) {
+        if (!this.clickMoveSource) {
+            // 첫 번째 클릭: 이동할 좌석 선택
+            this.clickMoveSource = seat;
+            this.clearClickMoveVisuals();
+            seatElement.classList.add('click-source');
+            this.updateStatus(`${seat.person.name}님을 선택했습니다. 이동할 좌석을 클릭하세요.`);
+            
+            // 같은 팀 카드 내 빈 좌석들 하이라이트
+            this.highlightMoveTargets(seat.teamCard);
+        } else {
+            // 두 번째 클릭: 이동 실행
+            if (seat === this.clickMoveSource) {
+                // 같은 좌석 클릭 시 선택 해제
+                this.clearClickMoveState();
+                this.updateStatus('이동이 취소되었습니다.');
+                return;
+            }
+            
+            if (seat.teamCard === this.clickMoveSource.teamCard) {
+                // 같은 팀 카드 내에서 이동
+                this.swapSeats(this.clickMoveSource, seat);
+                this.clearClickMoveState();
+                this.updateStatus(`${this.clickMoveSource.person ? this.clickMoveSource.person.name : '팀원'}님이 이동했습니다.`);
+            } else {
+                this.updateStatus('같은 팀 내에서만 이동할 수 있습니다.');
+            }
+        }
+    }
+
+    // 클릭 이동 상태 초기화
+    clearClickMoveState() {
+        this.clickMoveSource = null;
+        this.clearClickMoveVisuals();
+    }
+
+    // 클릭 이동 시각적 표시 제거
+    clearClickMoveVisuals() {
+        this.elements.seatGrid.querySelectorAll('.seat').forEach(seat => {
+            seat.classList.remove('click-source', 'click-move-target');
+        });
+    }
+
+    // 이동 가능한 좌석들 하이라이트
+    highlightMoveTargets(teamCard) {
+        if (!teamCard) return;
+        
+        teamCard.seats.forEach(seatId => {
+            const [row, col] = seatId.split('-').slice(1).map(Number);
+            const seat = this.seatGrid[row][col];
+            const seatElement = document.querySelector(`[data-id="${seat.id}"]`);
+            
+            if (seatElement && seat !== this.clickMoveSource) {
+                seatElement.classList.add('click-move-target');
+            }
+        });
+    }
+
+    // 우클릭 컨텍스트 메뉴 처리
+    handleSeatContextMenu(event) {
+        if (this.interactionMode !== 'context-menu') return;
+        
+        event.preventDefault();
+        
+        const seatElement = event.currentTarget;
+        const row = parseInt(seatElement.dataset.row);
+        const col = parseInt(seatElement.dataset.col);
+        const seat = this.seatGrid[row][col];
+        
+        this.showContextMenu(event.pageX, event.pageY, seat);
+    }
+
+    // 컨텍스트 메뉴 표시
+    showContextMenu(x, y, seat) {
+        this.hideContextMenu();
+        
+        const menu = document.createElement('div');
+        menu.className = 'context-menu';
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        
+        const menuItems = [];
+        
+        if (seat.occupied && seat.person) {
+            menuItems.push({
+                text: `📝 ${seat.person.name} 정보 편집`,
+                action: () => this.editPersonInSeat(seat)
+            });
+            menuItems.push({
+                text: `🔄 ${seat.person.name} 이동`,
+                action: () => this.startPersonMove(seat)
+            });
+            menuItems.push({
+                text: `❌ 좌석 비우기`,
+                action: () => this.clearSeatPerson(seat)
+            });
+        } else if (seat.teamCard) {
+            menuItems.push({
+                text: `👤 팀원 배치`,
+                action: () => this.assignPersonToSeat(seat)
+            });
+        }
+        
+        if (seat.teamCard) {
+            menuItems.push({
+                text: `🏷️ 팀 정보 보기`,
+                action: () => this.showTeamInfo(seat.teamCard)
+            });
+        }
+        
+        menuItems.push({
+            text: `📍 좌석 정보 (${seat.row + 1}-${seat.col + 1})`,
+            action: () => this.showSeatInfo(seat)
+        });
+        
+        menuItems.forEach(item => {
+            const menuItem = document.createElement('div');
+            menuItem.className = 'context-menu-item';
+            menuItem.textContent = item.text;
+            menuItem.addEventListener('click', () => {
+                item.action();
+                this.hideContextMenu();
+            });
+            menu.appendChild(menuItem);
+        });
+        
+        document.body.appendChild(menu);
+        this.contextMenu = menu;
+    }
+
+    // 컨텍스트 메뉴 숨기기
+    hideContextMenu() {
+        if (this.contextMenu) {
+            this.contextMenu.remove();
+            this.contextMenu = null;
+        }
+    }
+
+    // 전역 클릭 처리
+    handleGlobalClick(event) {
+        if (this.contextMenu && !this.contextMenu.contains(event.target)) {
+            this.hideContextMenu();
+        }
+    }
+
+    // 컨텍스트 메뉴 액션들
+    editPersonInSeat(seat) {
+        const person = seat.person;
+        const newName = prompt(`이름을 수정하세요:`, person.name);
+        if (newName && newName.trim()) {
+            person.name = newName.trim();
+            this.updateSeatGrid();
+            this.updateStatus(`${person.name}님의 정보가 수정되었습니다.`);
+        }
+    }
+
+    startPersonMove(seat) {
+        this.interactionMode = 'click-move';
+        document.querySelector('input[name="interaction-mode"][value="click-move"]').checked = true;
+        this.clickMoveSource = seat;
+        this.clearClickMoveVisuals();
+        document.querySelector(`[data-id="${seat.id}"]`).classList.add('click-source');
+        this.highlightMoveTargets(seat.teamCard);
+        this.updateStatus(`${seat.person.name}님을 이동할 좌석을 클릭하세요.`);
+    }
+
+    clearSeatPerson(seat) {
+        if (confirm(`${seat.person.name}님을 좌석에서 제거하시겠습니까?`)) {
+            seat.person = null;
+            seat.occupied = false;
+            seat.teamCard = null; // 팀 할당 정보도 함께 제거
+            this.updateSeatGrid();
+            this.updateStatus('좌석이 비워졌습니다.');
+        }
+    }
+
+    assignPersonToSeat(seat) {
+        if (!seat.teamCard) return;
+        
+        const availableMembers = seat.teamCard.members.filter(member => 
+            !this.isPersonAssignedToSeat(member)
+        );
+        
+        if (availableMembers.length === 0) {
+            alert('배치할 수 있는 팀원이 없습니다.');
+            return;
+        }
+        
+        const memberNames = availableMembers.map(m => m.name);
+        const selectedName = prompt(`배치할 팀원을 선택하세요:\n${memberNames.join('\n')}`);
+        
+        const selectedMember = availableMembers.find(m => m.name === selectedName);
+        if (selectedMember) {
+            seat.person = selectedMember;
+            seat.occupied = true;
+            this.updateSeatGrid();
+            this.updateStatus(`${selectedMember.name}님이 좌석에 배치되었습니다.`);
+        }
+    }
+
+    isPersonAssignedToSeat(person) {
+        return this.seatGrid.some(row => 
+            row.some(seat => seat.person && seat.person.id === person.id)
+        );
+    }
+
+    showTeamInfo(teamCard) {
+        const memberNames = teamCard.members.map(m => m.name).join(', ');
+        alert(`팀: ${teamCard.name}\n팀원: ${memberNames}\n좌석 수: ${teamCard.seats.length}`);
+    }
+
+    showSeatInfo(seat) {
+        let info = `좌석 위치: ${seat.row + 1}행 ${seat.col + 1}열\n`;
+        if (seat.person) {
+            info += `사용자: ${seat.person.name} (${seat.person.position})\n`;
+        }
+        if (seat.teamCard) {
+            info += `팀: ${seat.teamCard.name}\n`;
+        }
+        if (!seat.occupied) {
+            info += `상태: 빈 좌석\n`;
+        }
+        alert(info);
+    }
+
+    // 좌석 선택
+    selectSeat(seat) {
+        seat.selected = true;
+        this.selectedSeats.add(seat.id);
+        this.updateSeatVisual(seat);
+    }
+
+    // 좌석 선택 토글
+    toggleSeatSelection(seat) {
+        if (seat.selected) {
+            seat.selected = false;
+            this.selectedSeats.delete(seat.id);
+        } else {
+            seat.selected = true;
+            this.selectedSeats.add(seat.id);
+        }
+        this.updateSeatVisual(seat);
+    }
+
+    // 좌석 범위 선택
+    selectSeatRange(start, end) {
+        this.clearSeatSelection();
+        
+        const minRow = Math.min(start.row, end.row);
+        const maxRow = Math.max(start.row, end.row);
+        const minCol = Math.min(start.col, end.col);
+        const maxCol = Math.max(start.col, end.col);
+        
+        for (let row = minRow; row <= maxRow; row++) {
+            for (let col = minCol; col <= maxCol; col++) {
+                const seat = this.seatGrid[row][col];
+                this.selectSeat(seat);
+            }
+        }
+    }
+
+    // 좌석 선택 해제
+    clearSeatSelection() {
+        this.selectedSeats.clear();
+        this.seatGrid.forEach(row => {
+            row.forEach(seat => {
+                seat.selected = false;
+                this.updateSeatVisual(seat);
+            });
+        });
+        this.updateSeatInfo();
+        this.updateSelectedSeatsCount();
+    }
+
+    // 좌석 시각적 업데이트
+    updateSeatVisual(seat) {
+        const seatElement = document.querySelector(`[data-id="${seat.id}"]`);
+        if (seatElement) {
+            seatElement.classList.toggle('selected', seat.selected);
+        }
+    }
+
+    // 선택 모드 변경 처리
+    handleSelectionModeChange(event) {
+        this.clearSeatSelection();
+        const mode = event.target.value;
+        this.updateStatus(`선택 모드가 ${mode === 'single' ? '단일' : '다중'} 모드로 변경되었습니다.`);
+    }
+
+    // 상호작용 모드 변경 처리
+    handleInteractionModeChange(event) {
+        this.interactionMode = event.target.value;
+        this.clearClickMoveState();
+        this.hideContextMenu();
+        
+        // 배치 변경 모드일 때는 좌석 선택 모드를 단일 선택으로 고정
+        if (this.interactionMode !== 'selection-only') {
+            const singleSelectionRadio = document.querySelector('input[name="selection-mode"][value="single"]');
+            if (singleSelectionRadio) {
+                singleSelectionRadio.checked = true;
+            }
+            // 좌석 선택 모드 라디오 버튼들 비활성화
+            document.querySelectorAll('input[name="selection-mode"]').forEach(radio => {
+                radio.disabled = true;
+            });
+        } else {
+            // 좌석 선택 모드 라디오 버튼들 활성화
+            document.querySelectorAll('input[name="selection-mode"]').forEach(radio => {
+                radio.disabled = false;
+            });
+        }
+        
+        const modeNames = {
+            'selection-only': '좌석 선택만',
+            'drag-drop': '드래그 앤 드롭',
+            'click-move': '클릭 이동',
+            'context-menu': '상세 편집'
+        };
+        
+        // 좌석 그리드 재설정
+        this.updateSeatGrid();
+        
+        this.updateStatus(`배치 변경 모드가 ${modeNames[this.interactionMode]}로 변경되었습니다.`);
+    }
+
+    // 좌석 정보 업데이트
+    updateSeatInfo() {
+        const selectedSeatsArray = Array.from(this.selectedSeats);
+        const seatInfoDiv = this.elements.seatInfo;
+        
+        if (selectedSeatsArray.length === 0) {
+            seatInfoDiv.innerHTML = '<p class="no-selection">좌석을 선택하세요</p>';
+            return;
+        }
+        
+        let infoHTML = '<div class="seat-info-content">';
+        
+        if (selectedSeatsArray.length === 1) {
+            const seatId = selectedSeatsArray[0];
+            const [row, col] = seatId.split('-').slice(1).map(Number);
+            const seat = this.seatGrid[row][col];
+            
+            infoHTML += `<div class="seat-info-item">
+                <span class="seat-info-label">좌석 위치:</span>
+                <span class="seat-info-value">${row + 1}행 ${col + 1}열</span>
+            </div>`;
+            
+            if (seat.person) {
+                infoHTML += `<div class="seat-info-item">
+                    <span class="seat-info-label">사용자:</span>
+                    <span class="seat-info-value">${seat.person.name} (${seat.person.position})</span>
+                </div>`;
+            }
+            
+            if (seat.teamCard) {
+                infoHTML += `<div class="seat-info-item">
+                    <span class="seat-info-label">팀:</span>
+                    <span class="seat-info-value">${seat.teamCard.name}</span>
+                </div>`;
+            }
+        } else {
+            infoHTML += `<div class="seat-info-item">
+                <span class="seat-info-label">선택된 좌석:</span>
+                <span class="seat-info-value">${selectedSeatsArray.length}개</span>
+            </div>`;
+        }
+        
+        infoHTML += '</div>';
+        seatInfoDiv.innerHTML = infoHTML;
+    }
+
+    // 선택된 좌석 수 업데이트
+    updateSelectedSeatsCount() {
+        this.elements.selectedSeatsCount.textContent = this.selectedSeats.size;
+    }
+
+    // 팀 할당 모달 표시
+    showTeamAssignModal() {
+        if (this.selectedSeats.size === 0) {
+            alert('좌석을 먼저 선택해주세요.');
+            return;
+        }
+        
+        this.updateTeamDropdown();
+        this.updateTeamMembersList();
+        this.updateSelectedSeatsCount();
+        this.updateSeatTeamMatch();
+        this.elements.teamAssignModal.classList.add('active');
+    }
+
+    // 팀 할당 모달 숨김
+    hideTeamAssignModal() {
+        this.elements.teamAssignModal.classList.remove('active');
+        this.elements.teamDropdown.value = '';
+        this.elements.customTeamNameInput.value = '';
+        this.elements.teamMemberCount.textContent = '0';
+        this.elements.teamMembersPreview.innerHTML = '';
+        this.elements.seatTeamMatch.textContent = '';
+    }
+
+    // 팀 드롭다운 업데이트
+    updateTeamDropdown() {
+        const dropdown = this.elements.teamDropdown;
+        dropdown.innerHTML = '<option value="">팀을 선택하세요</option>';
+        
+        // 부서별로 팀 그룹화
+        const teamsByDepartment = this.getTeamsByDepartment();
+        
+        Object.keys(teamsByDepartment).forEach(department => {
+            const members = teamsByDepartment[department];
+            if (members.length > 0) {
+                const option = document.createElement('option');
+                option.value = department;
+                option.textContent = `${department} (${members.length}명)`;
+                dropdown.appendChild(option);
+            }
+        });
+    }
+
+    // 부서별 팀 가져오기
+    getTeamsByDepartment() {
+        const teams = {};
+        
+        this.people.forEach(person => {
+            if (person.department) {
+                if (!teams[person.department]) {
+                    teams[person.department] = [];
+                }
+                teams[person.department].push(person);
+            }
+        });
+        
+        return teams;
+    }
+
+    // 할당 방식 변경 처리
+    handleAssignModeChange(event) {
+        const mode = event.target.value;
+        
+        if (mode === 'team') {
+            this.elements.teamModeSection.style.display = 'block';
+            this.elements.individualModeSection.style.display = 'none';
+        } else {
+            this.elements.teamModeSection.style.display = 'none';
+            this.elements.individualModeSection.style.display = 'block';
+        }
+        
+        this.updateSeatTeamMatch();
+    }
+
+    // 팀 드롭다운 변경 처리
+    handleTeamDropdownChange(event) {
+        const selectedDepartment = event.target.value;
+        
+        if (selectedDepartment) {
+            const teams = this.getTeamsByDepartment();
+            const teamMembers = teams[selectedDepartment] || [];
+            
+            this.elements.teamMemberCount.textContent = teamMembers.length;
+            
+            // 팀원 미리보기 업데이트
+            this.elements.teamMembersPreview.innerHTML = '';
+            teamMembers.forEach(member => {
+                const tag = document.createElement('div');
+                tag.className = 'team-member-tag';
+                tag.textContent = `${member.name} (${member.position})`;
+                this.elements.teamMembersPreview.appendChild(tag);
+            });
+        } else {
+            this.elements.teamMemberCount.textContent = '0';
+            this.elements.teamMembersPreview.innerHTML = '';
+        }
+        
+        this.updateSeatTeamMatch();
+    }
+
+    // 좌석 수와 팀원 수 비교
+    updateSeatTeamMatch() {
+        const seatCount = this.selectedSeats.size;
+        const assignMode = document.querySelector('input[name="assign-mode"]:checked').value;
+        
+        let memberCount = 0;
+        
+        if (assignMode === 'team') {
+            memberCount = parseInt(this.elements.teamMemberCount.textContent);
+        } else {
+            memberCount = this.elements.teamMembersList.querySelectorAll('input:checked').length;
+        }
+        
+        const matchElement = this.elements.seatTeamMatch;
+        
+        if (memberCount === 0) {
+            matchElement.textContent = '';
+            matchElement.className = 'seat-team-match';
+        } else if (seatCount === memberCount) {
+            matchElement.textContent = `✅ 좌석 수와 팀원 수가 일치합니다`;
+            matchElement.className = 'seat-team-match match';
+        } else if (seatCount > memberCount) {
+            matchElement.textContent = `⚠️ 좌석이 ${seatCount - memberCount}개 더 많습니다`;
+            matchElement.className = 'seat-team-match no-match';
+        } else {
+            matchElement.textContent = `❌ 팀원이 ${memberCount - seatCount}명 더 많습니다`;
+            matchElement.className = 'seat-team-match no-match';
+        }
+    }
+
+    // 팀원 목록 업데이트
+    updateTeamMembersList() {
+        const membersList = this.elements.teamMembersList;
+        membersList.innerHTML = '';
+        
+        this.people.forEach(person => {
+            const memberDiv = document.createElement('div');
+            memberDiv.className = 'team-member-item';
+            
+            memberDiv.innerHTML = `
+                <input type="checkbox" id="member-${person.id}" value="${person.id}">
+                <div class="team-member-info">
+                    <div class="team-member-name">${person.name}</div>
+                    <div class="team-member-position">${person.position} - ${person.department}</div>
+                </div>
+            `;
+            
+            // 체크박스 변경 이벤트
+            const checkbox = memberDiv.querySelector('input[type="checkbox"]');
+            checkbox.addEventListener('change', () => this.updateSeatTeamMatch());
+            
+            membersList.appendChild(memberDiv);
+        });
+    }
+
+    // 팀 할당 확인
+    confirmTeamAssign() {
+        const assignMode = document.querySelector('input[name="assign-mode"]:checked').value;
+        let teamName, selectedMembers;
+        
+        if (assignMode === 'team') {
+            // 팀 단위 할당
+            const selectedDepartment = this.elements.teamDropdown.value;
+            if (!selectedDepartment) {
+                alert('팀을 선택해주세요.');
+                return;
+            }
+            
+            teamName = selectedDepartment;
+            const teams = this.getTeamsByDepartment();
+            selectedMembers = teams[selectedDepartment] || [];
+            
+            if (selectedMembers.length === 0) {
+                alert('선택된 팀에 팀원이 없습니다.');
+                return;
+            }
+            
+            // 좌석 수와 팀원 수 확인
+            if (this.selectedSeats.size !== selectedMembers.length) {
+                const proceed = confirm(
+                    `좌석 수(${this.selectedSeats.size})와 팀원 수(${selectedMembers.length})가 일치하지 않습니다.\n` +
+                    `그래도 할당하시겠습니까?`
+                );
+                if (!proceed) return;
+            }
+            
+        } else {
+            // 개별 팀원 할당
+            teamName = this.elements.customTeamNameInput.value.trim();
+            if (!teamName) {
+                alert('팀명을 입력해주세요.');
+                return;
+            }
+            
+            selectedMembers = Array.from(this.elements.teamMembersList.querySelectorAll('input:checked'))
+                .map(checkbox => this.people.find(p => p.id === checkbox.value));
+            
+            if (selectedMembers.length === 0) {
+                alert('팀원을 선택해주세요.');
+                return;
+            }
+        }
+        
+        // 팀 카드 생성
+        const teamCard = {
+            id: this.generateId(),
+            name: teamName,
+            members: selectedMembers,
+            seats: Array.from(this.selectedSeats),
+            assignMode: assignMode
+        };
+        
+        this.teamCards.push(teamCard);
+        
+        // 선택된 좌석에 팀원 개별 할당
+        const selectedSeatsArray = Array.from(this.selectedSeats);
+        selectedSeatsArray.forEach((seatId, index) => {
+            const [row, col] = seatId.split('-').slice(1).map(Number);
+            const seat = this.seatGrid[row][col];
+            seat.teamCard = teamCard;
+            
+            // 팀원을 좌석에 개별 할당 (순서대로)
+            if (index < selectedMembers.length) {
+                seat.person = selectedMembers[index];
+                seat.occupied = true;
+            }
+        });
+        
+        this.updateSeatGrid();
+        this.updateTeamCardsList();
+        this.clearSeatSelection();
+        this.hideTeamAssignModal();
+        
+        this.updateStatus(`팀 "${teamName}"이 ${teamCard.seats.length}개 좌석에 할당되었습니다.`);
+    }
+
+    // 팀 카드 목록 업데이트
+    updateTeamCardsList() {
+        const cardsList = this.elements.teamCardsList;
+        cardsList.innerHTML = '';
+        
+        this.teamCards.forEach(teamCard => {
+            const cardDiv = document.createElement('div');
+            cardDiv.className = 'team-card';
+            cardDiv.dataset.teamId = teamCard.id;
+            
+            const memberNames = teamCard.members.map(m => m.name).join(', ');
+            
+            cardDiv.innerHTML = `
+                <div class="team-card-header">
+                    <div class="team-card-name">${teamCard.name}</div>
+                    <div class="team-card-count">${teamCard.seats.length}석</div>
+                </div>
+                <div class="team-card-members">${memberNames}</div>
+            `;
+            
+            cardDiv.addEventListener('click', () => this.selectTeamCard(teamCard));
+            cardsList.appendChild(cardDiv);
+        });
+    }
+
+    // 팀 카드 선택
+    selectTeamCard(teamCard) {
+        // 기존 선택 해제
+        this.clearSeatSelection();
+        
+        // 팀 카드의 좌석들 선택
+        teamCard.seats.forEach(seatId => {
+            const [row, col] = seatId.split('-').slice(1).map(Number);
+            const seat = this.seatGrid[row][col];
+            this.selectSeat(seat);
+        });
+        
+        this.updateSeatInfo();
+        this.updateSelectedSeatsCount();
+        
+        // 팀 카드 시각적 선택
+        document.querySelectorAll('.team-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        document.querySelector(`[data-team-id="${teamCard.id}"]`).classList.add('selected');
+    }
+
+    // 자리배치도 확대/축소/이동 기능들
+    seatZoomIn() {
+        this.seatZoom = Math.min(this.seatZoom * 1.2, 2.5);
+        this.applySeatTransform();
+        this.updateStatus(`확대: ${Math.round(this.seatZoom * 100)}%`);
+    }
+
+    seatZoomOut() {
+        this.seatZoom = Math.max(this.seatZoom / 1.2, 0.3);
+        this.applySeatTransform();
+        this.updateStatus(`축소: ${Math.round(this.seatZoom * 100)}%`);
+    }
+
+    resetSeatZoom() {
+        this.seatZoom = 1;
+        this.seatPanX = 0;
+        this.seatPanY = 0;
+        this.applySeatTransform();
+        this.updateStatus('원래 크기로 복원되었습니다.');
+    }
+
+    centerSeatView() {
+        this.seatPanX = 0;
+        this.seatPanY = 0;
+        this.applySeatTransform();
+        this.updateStatus('중앙으로 정렬되었습니다.');
+    }
+
+    applySeatTransform() {
+        const gridContainer = this.elements.seatGrid;
+        const wrapper = gridContainer.parentElement;
+        
+        if (!wrapper) return;
+        
+        // 컨테이너 크기 계산
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const gridRect = gridContainer.getBoundingClientRect();
+        
+        // 확대/축소 적용
+        gridContainer.style.transform = `scale(${this.seatZoom})`;
+        
+        // 중앙 정렬을 위한 위치 조정
+        const scaledWidth = gridRect.width * this.seatZoom;
+        const scaledHeight = gridRect.height * this.seatZoom;
+        
+        // 패닝 제한 (창을 벗어나지 않도록)
+        const maxPanX = Math.max(0, (scaledWidth - wrapperRect.width) / 2);
+        const maxPanY = Math.max(0, (scaledHeight - wrapperRect.height) / 2);
+        
+        this.seatPanX = Math.max(-maxPanX, Math.min(maxPanX, this.seatPanX));
+        this.seatPanY = Math.max(-maxPanY, Math.min(maxPanY, this.seatPanY));
+        
+        // 최종 변환 적용
+        gridContainer.style.transform = `scale(${this.seatZoom}) translate(${this.seatPanX}px, ${this.seatPanY}px)`;
+    }
+
+    setupSeatPanning() {
+        const wrapper = this.elements.seatGrid.parentElement;
+        if (!wrapper) return;
+
+        let isPanning = false;
+        let startX = 0;
+        let startY = 0;
+        let startPanX = 0;
+        let startPanY = 0;
+
+        wrapper.addEventListener('mousedown', (e) => {
+            // 좌석 선택 모드가 아닐 때만 패닝 허용
+            const interactionMode = document.querySelector('input[name="interaction-mode"]:checked').value;
+            if (interactionMode !== 'selection-only') return;
+            
+            // 좌석 클릭이 아닐 때만 패닝 허용
+            if (e.target.closest('.seat')) return;
+            
+            isPanning = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            startPanX = this.seatPanX;
+            startPanY = this.seatPanY;
+            
+            wrapper.style.cursor = 'grabbing';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isPanning) return;
+            
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            
+            this.seatPanX = startPanX + deltaX;
+            this.seatPanY = startPanY + deltaY;
+            
+            this.applySeatTransform();
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isPanning) {
+                isPanning = false;
+                wrapper.style.cursor = 'grab';
+            }
+        });
+
+        // 마우스 휠 줌 기능
+        wrapper.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            this.seatZoom = Math.max(0.3, Math.min(2.5, this.seatZoom * zoomFactor));
+            
+            this.applySeatTransform();
+            this.updateStatus(`줌: ${Math.round(this.seatZoom * 100)}%`);
+        });
+
+        // 초기 커서 설정
+        wrapper.style.cursor = 'grab';
+    }
+
+    // 레이아웃 저장/불러오기
+    saveLayout() {
+        const layoutData = {
+            gridCols: this.gridCols,
+            gridRows: this.gridRows,
+            seatGrid: this.seatGrid,
+            teamCards: this.teamCards
+        };
+        
+        const dataStr = JSON.stringify(layoutData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `seat_layout_${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        
+        URL.revokeObjectURL(url);
+        this.updateStatus('자리배치도가 저장되었습니다.');
+    }
+
+    loadLayout() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const layoutData = JSON.parse(e.target.result);
+                    
+                    this.gridCols = layoutData.gridCols;
+                    this.gridRows = layoutData.gridRows;
+                    this.seatGrid = layoutData.seatGrid;
+                    this.teamCards = layoutData.teamCards || [];
+                    
+                    this.elements.gridCols.value = this.gridCols;
+                    this.elements.gridRows.value = this.gridRows;
+                    
+                    this.updateSeatGrid();
+                    this.updateTeamCardsList();
+                    
+                    this.updateStatus('자리배치도가 불러와졌습니다.');
+                } catch (error) {
+                    alert('파일을 읽는 중 오류가 발생했습니다.');
+                    console.error('Layout loading error:', error);
+                }
+            };
+            
+            reader.readAsText(file);
+        };
+        
+        input.click();
     }
 
     initializeD3() {
@@ -131,17 +1423,16 @@ class OrgChartSystem {
         // 메인 그룹 생성
         this.svg.append('g').attr('class', 'main-group');
 
-        // 트리 레이아웃 설정 - 고정된 노드 간격 사용
+        // 트리 레이아웃 설정 - 일정한 격자 간격 사용
         this.treeLayout = d3.tree()
-            .nodeSize([160, 140]) // 고정된 노드 크기 사용 (width, height)
+            .nodeSize([200, 180]) // 더 넓은 일정한 노드 간격 (width, height)
             .separation((a, b) => {
-                // 고정된 간격 값 사용
-                if (a.data.type === 'team' || b.data.type === 'team') {
-                    return a.parent === b.parent ? 1.0 : 2.5;
-                }
-                return a.parent === b.parent ? 1.5 : 2.0;
+                // 완전히 일정한 간격 사용
+                return 1.2; // 모든 노드 간격을 1.2로 통일
             });
     }
+
+
 
     handleExcelUpload(event) {
         const file = event.target.files[0];
@@ -647,8 +1938,6 @@ class OrgChartSystem {
         this.updateStatus(`샘플 데이터가 로드되었습니다! (총 ${this.people.length}명)`);
     }
 
-
-
     deletePerson(id) {
         const person = this.people.find(p => p.id === id);
         if (!person) return;
@@ -891,8 +2180,7 @@ class OrgChartSystem {
             return;
         }
 
-        const qualityText = isHighQuality ? '고화질' : '표준';
-        this.updateStatus(`${qualityText} PDF 파일을 생성하고 있습니다...`);
+        this.updateStatus('대형 인쇄용 조직도 PDF 파일을 생성하고 있습니다...');
 
         try {
             // 현재 줌 상태 저장
@@ -904,19 +2192,22 @@ class OrgChartSystem {
             // 잠시 대기 (애니메이션 완료)
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // 화질 설정
-            const qualitySettings = isHighQuality ? {
-                scale: 6, // 6배 확대 (고화질)
-                dpi: 300,
-                format: 'a3' // A3 크기로 더 큰 공간 제공
-            } : {
-                scale: 2, // 2배 확대 (표준)
-                dpi: 150,
-                format: 'a4'
+            // 대형 인쇄용 설정
+            const qualitySettings = {
+                scale: 4, // 4배 확대로 조정 (8배는 너무 큼)
+                dpi: 300, // DPI 조정
+                format: 'a2' // A2 크기로 대형 출력 지원
             };
 
-            // 조직도 캔버스로 변환
+            // 조직도 캔버스로 변환 (경계선 제거를 위한 설정)
             const chartElement = this.elements.orgChart;
+            
+            // PDF 생성용 임시 스타일 적용
+            const originalStyle = chartElement.style.cssText;
+            chartElement.style.border = 'none';
+            chartElement.style.outline = 'none';
+            chartElement.style.boxShadow = 'none';
+            
             const canvas = await html2canvas(chartElement, {
                 backgroundColor: '#ffffff',
                 scale: qualitySettings.scale,
@@ -927,8 +2218,13 @@ class OrgChartSystem {
                 width: chartElement.offsetWidth,
                 height: chartElement.offsetHeight,
                 dpi: qualitySettings.dpi,
-                pixelRatio: 1
+                pixelRatio: 1,
+                logging: false, // 로그 비활성화
+                removeContainer: true // 컨테이너 제거
             });
+
+            // 원래 스타일 복원
+            chartElement.style.cssText = originalStyle;
 
             // PDF 생성
             const { jsPDF } = window.jspdf;
@@ -938,42 +2234,163 @@ class OrgChartSystem {
                 format: qualitySettings.format
             });
 
-            // 이미지 추가
-            const imgData = canvas.toDataURL('image/png', 1.0); // 최고 품질 PNG
-            const pageWidth = qualitySettings.format === 'a3' ? 420 : 297; // A3: 420mm, A4: 297mm
-            const pageHeight = qualitySettings.format === 'a3' ? 297 : 210; // A3: 297mm, A4: 210mm
+            // 이미지 추가 (단일 페이지로 최적화)
+            const imgData = canvas.toDataURL('image/png', 1.0);
+            const pageWidth = 594; // A2 가로: 594mm
+            const pageHeight = 420; // A2 세로: 420mm
             
+            // 이미지 크기 계산 (비율 유지)
             const imgWidth = pageWidth;
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
             
-            let heightLeft = imgHeight;
-            let position = 0;
+            // 이미지가 페이지에 맞는지 확인
+            if (imgHeight <= pageHeight) {
+                // 단일 페이지로 출력
+                const yOffset = (pageHeight - imgHeight) / 2; // 중앙 정렬
+                pdf.addImage(imgData, 'PNG', 0, yOffset, imgWidth, imgHeight);
+            } else {
+                // 여러 페이지로 분할 (필요한 경우만)
+                let heightLeft = imgHeight;
+                let position = 0;
 
-            // 첫 페이지
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-
-            // 필요시 추가 페이지
-            while (heightLeft >= 0) {
-                position = heightLeft - imgHeight;
-                pdf.addPage();
+                // 첫 페이지
                 pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
                 heightLeft -= pageHeight;
+
+                // 추가 페이지 (실제로 필요한 경우만)
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
             }
 
             // 파일 저장
-            const qualityPrefix = isHighQuality ? '_HQ' : '';
-            const fileName = `orgchart${qualityPrefix}_${new Date().toISOString().split('T')[0]}.pdf`;
+            const fileName = `orgchart_large_${new Date().toISOString().split('T')[0]}.pdf`;
             pdf.save(fileName);
 
             // 원래 줌 상태 복원
             this.svg.call(this.zoom.transform, currentTransform);
 
-            this.updateStatus(`${qualityText} PDF 파일이 다운로드되었습니다!`);
+            this.updateStatus('대형 인쇄용 조직도 PDF 파일이 다운로드되었습니다!');
 
         } catch (error) {
             console.error('PDF 생성 오류:', error);
-            this.updateStatus(`${qualityText} PDF 생성 중 오류가 발생했습니다.`);
+            this.updateStatus('대형 인쇄용 조직도 PDF 생성 중 오류가 발생했습니다.');
+        }
+    }
+
+    async exportSeatLayoutToPDF() {
+        if (this.seatGrid.length === 0) {
+            alert('내보낼 자리배치도가 없습니다.');
+            return;
+        }
+
+        this.updateStatus('대형 인쇄용 자리배치도 PDF 파일을 생성하고 있습니다...');
+
+        try {
+            // 현재 줌 상태 저장
+            const currentZoom = this.seatZoom;
+            const currentPanX = this.seatPanX;
+            const currentPanY = this.seatPanY;
+            
+            // 전체 자리배치도가 보이도록 리셋
+            this.resetSeatZoom();
+            this.centerSeatView();
+            
+            // 잠시 대기 (애니메이션 완료)
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // 대형 인쇄용 설정
+            const qualitySettings = {
+                scale: 4, // 4배 확대로 조정 (8배는 너무 큼)
+                dpi: 300, // DPI 조정
+                format: 'a2' // A2 크기로 대형 출력 지원
+            };
+
+            // 자리배치도 캔버스로 변환 (경계선 제거를 위한 설정)
+            const seatElement = this.elements.seatGrid;
+            
+            // PDF 생성용 임시 스타일 적용
+            const originalStyle = seatElement.style.cssText;
+            seatElement.style.border = 'none';
+            seatElement.style.outline = 'none';
+            seatElement.style.boxShadow = 'none';
+            
+            const canvas = await html2canvas(seatElement, {
+                backgroundColor: '#ffffff',
+                scale: qualitySettings.scale,
+                useCORS: true,
+                allowTaint: true,
+                scrollX: 0,
+                scrollY: 0,
+                width: seatElement.offsetWidth,
+                height: seatElement.offsetHeight,
+                dpi: qualitySettings.dpi,
+                pixelRatio: 1,
+                logging: false, // 로그 비활성화
+                removeContainer: true // 컨테이너 제거
+            });
+
+            // 원래 스타일 복원
+            seatElement.style.cssText = originalStyle;
+
+            // PDF 생성
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: qualitySettings.format
+            });
+
+            // 이미지 추가 (단일 페이지로 최적화)
+            const imgData = canvas.toDataURL('image/png', 1.0);
+            const pageWidth = 594; // A2 가로: 594mm
+            const pageHeight = 420; // A2 세로: 420mm
+            
+            // 이미지 크기 계산 (비율 유지)
+            const imgWidth = pageWidth;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            
+            // 이미지가 페이지에 맞는지 확인
+            if (imgHeight <= pageHeight) {
+                // 단일 페이지로 출력
+                const yOffset = (pageHeight - imgHeight) / 2; // 중앙 정렬
+                pdf.addImage(imgData, 'PNG', 0, yOffset, imgWidth, imgHeight);
+            } else {
+                // 여러 페이지로 분할 (필요한 경우만)
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                // 첫 페이지
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+
+                // 추가 페이지 (실제로 필요한 경우만)
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+            }
+
+            // 파일 저장
+            const fileName = `seatlayout_large_${new Date().toISOString().split('T')[0]}.pdf`;
+            pdf.save(fileName);
+
+            // 원래 줌 상태 복원
+            this.seatZoom = currentZoom;
+            this.seatPanX = currentPanX;
+            this.seatPanY = currentPanY;
+            this.applySeatTransform();
+
+            this.updateStatus('대형 인쇄용 자리배치도 PDF 파일이 다운로드되었습니다!');
+
+        } catch (error) {
+            console.error('자리배치도 PDF 생성 오류:', error);
+            this.updateStatus('자리배치도 PDF 생성 중 오류가 발생했습니다.');
         }
     }
 
@@ -1067,36 +2484,36 @@ class OrgChartSystem {
                 }
             });
 
-        // 팀 노드 (사각형)
+        // 팀 노드 (사각형) - 대형 인쇄용으로 크기 증가
         nodes.filter(d => d.data.type === 'team')
             .append('rect')
-            .attr('x', -60)
-            .attr('y', -25)
-            .attr('width', 120)
-            .attr('height', 50)
-            .attr('rx', 15)
+            .attr('x', -80)
+            .attr('y', -35)
+            .attr('width', 160)
+            .attr('height', 70)
+            .attr('rx', 20)
             .style('fill', d => d.data.teamColor || this.getTeamColor(d.data.department))
             .style('stroke', d => {
                 const teamColor = d.data.teamColor || this.getTeamColor(d.data.department);
                 return this.getTeamStrokeColorFromBase(teamColor);
             })
-            .style('stroke-width', 3);
+            .style('stroke-width', 4);
 
-        // 개인 노드 (원형) - CEO는 더 크게
+        // 개인 노드 (원형) - 대형 인쇄용으로 크기 증가
         nodes.filter(d => d.data.type === 'person')
             .append('circle')
-            .attr('r', d => this.isCEO(d.data) ? 55 : 40)
+            .attr('r', d => this.isCEO(d.data) ? 75 : 55)
             .style('fill', d => this.getPersonColor(d.data))
             .style('stroke', d => this.getPersonStrokeColor(d.data))
-            .style('stroke-width', d => this.isCEO(d.data) ? 3 : 2);
+            .style('stroke-width', d => this.isCEO(d.data) ? 4 : 3);
 
-        // 팀명 텍스트
+        // 팀명 텍스트 - 대형 인쇄용으로 크기 증가
         nodes.filter(d => d.data.type === 'team')
             .append('text')
             .attr('dy', '0.3em')
             .style('text-anchor', 'middle')
             .style('dominant-baseline', 'middle')
-            .style('font-size', '16px')
+            .style('font-size', '22px')
             .style('fill', d => {
                 const backgroundColor = d.data.teamColor || this.getTeamColor(d.data.department);
                 return this.getTextColor(backgroundColor);
@@ -1107,53 +2524,53 @@ class OrgChartSystem {
                 const textColor = this.getTextColor(backgroundColor);
                 // 텍스트가 검은색이면 밝은 그림자, 흰색이면 어두운 그림자
                 return textColor === '#000000' ? 
-                    '1px 1px 2px rgba(255,255,255,0.8)' : 
-                    '1px 1px 2px rgba(0,0,0,0.8)';
+                    '2px 2px 4px rgba(255,255,255,0.8)' : 
+                    '2px 2px 4px rgba(0,0,0,0.8)';
             })
             .text(d => d.data.name);
 
-        // CEO 왕관 텍스트 (맨 위) - 5px 아래로
+        // CEO 왕관 텍스트 (맨 위) - 대형 인쇄용으로 크기 증가
         nodes.filter(d => d.data.type === 'person' && this.isCEO(d.data))
             .append('text')
-            .attr('dy', '-1.8em')
+            .attr('dy', '-2.2em')
             .style('text-anchor', 'middle')
-            .style('font-size', '20px')
+            .style('font-size', '28px')
             .style('fill', '#ffd700')
-            .style('text-shadow', '2px 2px 4px rgba(0,0,0,0.5)')
+            .style('text-shadow', '3px 3px 6px rgba(0,0,0,0.5)')
             .text('👑');
 
-        // 개인 이름 텍스트 - CEO는 더 크게
+        // 개인 이름 텍스트 - 대형 인쇄용으로 크기 증가
         nodes.filter(d => d.data.type === 'person')
             .append('text')
-            .attr('dy', d => this.isCEO(d.data) ? '-0.8em' : '-1.5em')
+            .attr('dy', d => this.isCEO(d.data) ? '-1.0em' : '-1.8em')
             .style('text-anchor', 'middle')
             .style('dominant-baseline', 'middle')
-            .style('font-size', d => this.isCEO(d.data) ? '16px' : '12px')
+            .style('font-size', d => this.isCEO(d.data) ? '22px' : '18px')
             .style('fill', 'white')
             .style('font-weight', 'bold')
-            .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
+            .style('text-shadow', '2px 2px 4px rgba(0,0,0,0.8)')
             .text(d => d.data.name);
 
-        // 개인 직급 텍스트 - CEO는 더 크게 (CEO는 임무가 없으므로 중앙에 위치)
+        // 개인 직급 텍스트 - 대형 인쇄용으로 크기 증가
         nodes.filter(d => d.data.type === 'person')
             .append('text')
-            .attr('dy', d => this.isCEO(d.data) ? '1.2em' : '-0.2em')
+            .attr('dy', d => this.isCEO(d.data) ? '1.5em' : '-0.3em')
             .style('text-anchor', 'middle')
             .style('dominant-baseline', 'middle')
-            .style('font-size', d => this.isCEO(d.data) ? '14px' : '10px')
+            .style('font-size', d => this.isCEO(d.data) ? '18px' : '14px')
             .style('fill', '#e2e8f0')
-            .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
+            .style('text-shadow', '2px 2px 4px rgba(0,0,0,0.8)')
             .text(d => d.data.position);
 
-        // 개인 임무 텍스트 - CEO는 표시 안함
+        // 개인 임무 텍스트 - 대형 인쇄용으로 크기 증가
         nodes.filter(d => d.data.type === 'person' && !this.isCEO(d.data))
             .append('text')
-            .attr('dy', '1.8em')
+            .attr('dy', '2.2em')
             .style('text-anchor', 'middle')
             .style('dominant-baseline', 'middle')
-            .style('font-size', '9px')
+            .style('font-size', '12px')
             .style('fill', '#90cdf4')
-            .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
+            .style('text-shadow', '2px 2px 4px rgba(0,0,0,0.8)')
             .text(d => d.data.task || '일반업무');
 
         // 차트 중앙 정렬 (초기 로드가 아닌 경우에만)
@@ -1564,14 +2981,14 @@ class OrgChartSystem {
         const parentX = parentNode.x;
         const parentY = parentNode.y;
         
-        // 부모 노드의 연결점 계산
-        const parentOffset = parentNode.data.type === 'team' ? 25 : 35; // 팀 노드는 사각형이므로 25, 개인 노드는 원형이므로 35
+        // 부모 노드의 연결점 계산 - 일정한 간격에 맞춰 조정
+        const parentOffset = parentNode.data.type === 'team' ? 35 : 45; // 팀 노드는 사각형이므로 35, 개인 노드는 원형이므로 45
         
         // 자식 노드들의 위치 정보
         const childPositions = children.map(child => ({
             x: child.x,
             y: child.y,
-            offset: child.data.type === 'team' ? 25 : 35 // 각 자식의 타입에 따른 오프셋
+            offset: child.data.type === 'team' ? 35 : 45 // 각 자식의 타입에 따른 오프셋
         }));
 
         // 중간 지점 계산 (부모와 자식의 중간)
@@ -1586,12 +3003,13 @@ class OrgChartSystem {
                            L ${parentX} ${midY}
                            L ${child.x} ${midY}
                            L ${child.x} ${child.y - child.offset}`)
+                .style('stroke-width', '4')
                 .style('cursor', 'pointer')
                 .on('mouseenter', function() {
-                    d3.select(this).style('stroke', '#4a5568').style('stroke-width', '3');
+                    d3.select(this).style('stroke', '#4a5568').style('stroke-width', '5');
                 })
                 .on('mouseleave', function() {
-                    d3.select(this).style('stroke', '#718096').style('stroke-width', '2');
+                    d3.select(this).style('stroke', '#718096').style('stroke-width', '4');
                 });
         } else {
             // 자식이 여러 명인 경우: T자 모양 연결
@@ -1602,24 +3020,26 @@ class OrgChartSystem {
             svg.append('path')
                 .attr('class', 'link')
                 .attr('d', `M ${parentX} ${parentY + parentOffset} L ${parentX} ${midY}`)
+                .style('stroke-width', '4')
                 .style('cursor', 'pointer')
                 .on('mouseenter', function() {
-                    d3.select(this).style('stroke', '#4a5568').style('stroke-width', '3');
+                    d3.select(this).style('stroke', '#4a5568').style('stroke-width', '5');
                 })
                 .on('mouseleave', function() {
-                    d3.select(this).style('stroke', '#718096').style('stroke-width', '2');
+                    d3.select(this).style('stroke', '#718096').style('stroke-width', '4');
                 });
 
             // 자식들을 연결하는 수평선
             svg.append('path')
                 .attr('class', 'link')
                 .attr('d', `M ${leftMost} ${midY} L ${rightMost} ${midY}`)
+                .style('stroke-width', '4')
                 .style('cursor', 'pointer')
                 .on('mouseenter', function() {
-                    d3.select(this).style('stroke', '#4a5568').style('stroke-width', '3');
+                    d3.select(this).style('stroke', '#4a5568').style('stroke-width', '5');
                 })
                 .on('mouseleave', function() {
-                    d3.select(this).style('stroke', '#718096').style('stroke-width', '2');
+                    d3.select(this).style('stroke', '#718096').style('stroke-width', '4');
                 });
 
             // 각 자식으로 내려가는 수직선
@@ -1627,12 +3047,13 @@ class OrgChartSystem {
                 svg.append('path')
                     .attr('class', 'link')
                     .attr('d', `M ${child.x} ${midY} L ${child.x} ${child.y - child.offset}`)
+                    .style('stroke-width', '4')
                     .style('cursor', 'pointer')
                     .on('mouseenter', function() {
-                        d3.select(this).style('stroke', '#4a5568').style('stroke-width', '3');
+                        d3.select(this).style('stroke', '#4a5568').style('stroke-width', '5');
                     })
                     .on('mouseleave', function() {
-                        d3.select(this).style('stroke', '#718096').style('stroke-width', '2');
+                        d3.select(this).style('stroke', '#718096').style('stroke-width', '4');
                     });
             });
         }

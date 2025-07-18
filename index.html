@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>동적 조직도 시스템</title>
+    <title>동적 조직도 & 자리배치도 시스템</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -13,65 +13,161 @@
 <body>
     <div class="container">
         <header>
-            <h1>🏢 동적 조직도 시스템</h1>
-            <p>엑셀 파일을 업로드하거나 직접 편집하여 조직도를 실시간으로 생성하세요</p>
+            <h1>🏢 동적 조직도 & 자리배치도 시스템</h1>
+            <p>엑셀 파일을 업로드하거나 직접 편집하여 조직도를 실시간으로 생성하고 자리배치도를 관리하세요</p>
         </header>
 
-        <div class="control-panel">
-            <div class="upload-section">
-                <label for="excel-upload" class="upload-btn">
-                    📁 엑셀 파일 업로드
-                    <input type="file" id="excel-upload" accept=".xlsx,.xls" style="display: none;">
-                </label>
-                <button id="sample-data-btn" class="sample-btn">📊 샘플 데이터 로드</button>
+        <!-- 탭 시스템 -->
+        <div class="tab-system">
+            <div class="tab-buttons">
+                <button class="tab-btn active" data-tab="org-chart">📊 조직도</button>
+                <button class="tab-btn" data-tab="seat-layout">🪑 자리배치도</button>
             </div>
+        </div>
 
-            <div class="edit-section">
-                <h3>조직도 데이터 편집</h3>
-                <div class="input-container">
-                    <div id="input-rows">
-                        <div class="input-row" data-row="0">
-                            <input type="text" placeholder="이름" class="name-input">
-                            <input type="text" placeholder="직급" class="position-input">
-                            <input type="text" placeholder="임무" class="task-input">
-                            <input type="text" placeholder="부서" class="department-input">
-                            <input type="text" placeholder="상위자 (선택사항)" class="manager-input">
-                            <button type="button" class="add-row-btn">➕</button>
+        <!-- 조직도 탭 콘텐츠 -->
+        <div id="org-chart-tab" class="tab-content active">
+            <div class="control-panel">
+                <div class="upload-section">
+                    <label for="excel-upload" class="upload-btn">
+                        📁 엑셀 파일 업로드
+                        <input type="file" id="excel-upload" accept=".xlsx,.xls" style="display: none;">
+                    </label>
+                    <button id="sample-data-btn" class="sample-btn">📊 샘플 데이터 로드</button>
+                </div>
+
+                <div class="edit-section">
+                    <h3>조직도 데이터 편집</h3>
+                    <div class="input-container">
+                        <div id="input-rows">
+                            <div class="input-row" data-row="0">
+                                <input type="text" placeholder="이름" class="name-input">
+                                <input type="text" placeholder="직급" class="position-input">
+                                <input type="text" placeholder="임무" class="task-input">
+                                <input type="text" placeholder="부서" class="department-input">
+                                <input type="text" placeholder="상위자 (선택사항)" class="manager-input">
+                                <button type="button" class="add-row-btn">➕</button>
+                            </div>
+                        </div>
+                        
+                        <div class="bulk-actions">
+                            <button id="add-all-btn" class="bulk-add-btn">📥 일괄 추가</button>
+                            <button id="clear-inputs-btn" class="clear-inputs-btn">🗑️ 입력 초기화</button>
                         </div>
                     </div>
                     
-                    <div class="bulk-actions">
-                        <button id="add-all-btn" class="bulk-add-btn">📥 일괄 추가</button>
-                        <button id="clear-inputs-btn" class="clear-inputs-btn">🗑️ 입력 초기화</button>
+                    <div class="actions">
+                        <button id="clear-all-btn" class="danger-btn">🗑️ 모두 지우기</button>
+                        <button id="export-excel-btn" class="export-btn">📊 엑셀 내보내기</button>
+                        <button id="export-pdf-btn" class="export-btn pdf-btn">📄 대형 인쇄용 PDF 내보내기</button>
                     </div>
                 </div>
+            </div>
+
+            <div class="main-content">
+                <div class="sidebar">
+                    <h3>팀원 목록</h3>
+                    <div id="people-list" class="people-list"></div>
+                </div>
                 
-                <div class="actions">
-                    <button id="clear-all-btn" class="danger-btn">🗑️ 모두 지우기</button>
-                    <button id="export-excel-btn" class="export-btn">📊 엑셀 내보내기</button>
-                    <div class="pdf-export-group">
-                        <button id="export-pdf-btn" class="export-btn pdf-btn">📄 표준 PDF 내보내기</button>
-                        <button id="export-pdf-hq-btn" class="export-btn pdf-hq-btn">🎨 고화질 PDF 내보내기</button>
+                <div class="chart-container">
+                    <div class="chart-controls">
+                        <button id="zoom-in-btn">🔍 확대</button>
+                        <button id="zoom-out-btn">🔍 축소</button>
+                        <button id="reset-zoom-btn">🔄 원래 크기</button>
+                        <button id="center-btn">🎯 중앙 정렬</button>
+                        <button id="fit-view-btn">📐 전체 보기</button>
                     </div>
+                    <div id="org-chart" class="org-chart"></div>
                 </div>
             </div>
         </div>
 
-        <div class="main-content">
-            <div class="sidebar">
-                <h3>팀원 목록</h3>
-                <div id="people-list" class="people-list"></div>
-            </div>
-            
-            <div class="chart-container">
-                <div class="chart-controls">
-                    <button id="zoom-in-btn">🔍 확대</button>
-                    <button id="zoom-out-btn">🔍 축소</button>
-                    <button id="reset-zoom-btn">🔄 원래 크기</button>
-                    <button id="center-btn">🎯 중앙 정렬</button>
-                    <button id="fit-view-btn">📐 전체 보기</button>
+        <!-- 자리배치도 탭 콘텐츠 -->
+        <div id="seat-layout-tab" class="tab-content">
+            <div class="control-panel">
+                <div class="seat-controls">
+                    <div class="grid-settings">
+                        <h3>격자 설정</h3>
+                        <div class="grid-settings-row">
+                            <label>가로 좌석 수:</label>
+                            <input type="number" id="grid-cols" value="10" min="5" max="50">
+                            <label>세로 좌석 수:</label>
+                            <input type="number" id="grid-rows" value="8" min="5" max="50">
+                            <button id="apply-grid-btn" class="apply-btn">🔄 격자 적용</button>
+                        </div>
+                    </div>
+                    
+                    <div class="seat-actions">
+                        <h3>좌석 관리</h3>
+                        <div class="seat-actions-row">
+                            <button id="clear-selection-btn" class="clear-btn">🗑️ 선택 해제</button>
+                            <button id="assign-team-btn" class="assign-btn">👥 팀 할당</button>
+                            <button id="save-layout-btn" class="save-btn">💾 배치 저장</button>
+                            <button id="load-layout-btn" class="load-btn">📁 배치 불러오기</button>
+                            <button id="export-seat-pdf-btn" class="export-btn pdf-btn">📄 대형 인쇄용 PDF 내보내기</button>
+                        </div>
+                    </div>
                 </div>
-                <div id="org-chart" class="org-chart"></div>
+            </div>
+
+            <div class="seat-main-content">
+                <div class="seat-sidebar">
+                    <h3>팀 카드</h3>
+                    <div id="team-cards-list" class="team-cards-list"></div>
+                    
+                    <div class="seat-info-panel">
+                        <h3>좌석 정보</h3>
+                        <div id="seat-info" class="seat-info">
+                            <p class="no-selection">좌석을 선택하세요</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="seat-grid-container">
+                    <div class="seat-grid-controls">
+                        <button id="seat-zoom-in-btn">🔍 확대</button>
+                        <button id="seat-zoom-out-btn">🔍 축소</button>
+                        <button id="seat-reset-zoom-btn">🔄 원래 크기</button>
+                        <button id="seat-center-btn">🎯 중앙 정렬</button>
+                        <div class="control-modes">
+                            <div class="selection-mode">
+                                <label>좌석 선택 모드:</label>
+                                <label>
+                                    <input type="radio" name="selection-mode" value="single" checked>
+                                    단일 선택
+                                </label>
+                                <label>
+                                    <input type="radio" name="selection-mode" value="multiple">
+                                    다중 선택
+                                </label>
+                            </div>
+                            
+                            <div class="interaction-mode">
+                                <label>배치 변경 모드:</label>
+                                <label>
+                                    <input type="radio" name="interaction-mode" value="selection-only" checked>
+                                    <span>📋 좌석 선택만</span>
+                                </label>
+                                <label>
+                                    <input type="radio" name="interaction-mode" value="drag-drop">
+                                    <span>🖱️ 드래그 앤 드롭</span>
+                                </label>
+                                <label>
+                                    <input type="radio" name="interaction-mode" value="click-move">
+                                    <span>👆 클릭 이동</span>
+                                </label>
+                                <label>
+                                    <input type="radio" name="interaction-mode" value="context-menu">
+                                    <span>🔧 상세 편집</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="seat-grid-wrapper">
+                        <div id="seat-grid" class="seat-grid"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -91,6 +187,63 @@
             <div class="modal-buttons">
                 <button id="confirm-no" class="modal-btn modal-btn-secondary">아니오</button>
                 <button id="confirm-yes" class="modal-btn modal-btn-primary">예</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 팀 할당 팝업 -->
+    <div id="team-assign-modal" class="modal-overlay">
+        <div class="modal">
+            <h3>👥 팀 할당</h3>
+            <div class="team-assign-form">
+                <div class="form-group">
+                    <label>할당 방식:</label>
+                    <div class="assign-mode-selector">
+                        <label>
+                            <input type="radio" name="assign-mode" value="team" checked>
+                            팀 단위 할당
+                        </label>
+                        <label>
+                            <input type="radio" name="assign-mode" value="individual">
+                            개별 팀원 할당
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- 팀 단위 할당 -->
+                <div id="team-mode-section" class="assign-mode-section">
+                    <div class="form-group">
+                        <label>팀 선택:</label>
+                        <select id="team-dropdown" class="team-dropdown">
+                            <option value="">팀을 선택하세요</option>
+                        </select>
+                    </div>
+                    <div class="team-info" id="team-info">
+                        <p class="team-member-count">팀원 수: <span id="team-member-count">0</span>명</p>
+                        <div class="team-members-preview" id="team-members-preview"></div>
+                    </div>
+                </div>
+                
+                <!-- 개별 팀원 할당 -->
+                <div id="individual-mode-section" class="assign-mode-section" style="display: none;">
+                    <div class="form-group">
+                        <label>사용자 정의 팀명:</label>
+                        <input type="text" id="custom-team-name-input" placeholder="팀명 입력">
+                    </div>
+                    <div class="form-group">
+                        <label>팀원 선택:</label>
+                        <div id="team-members-list" class="team-members-list"></div>
+                    </div>
+                </div>
+                
+                <div class="selected-seats-info">
+                    <p>선택된 좌석: <span id="selected-seats-count">0</span>개</p>
+                    <p class="seat-team-match" id="seat-team-match"></p>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button id="team-assign-cancel" class="modal-btn modal-btn-secondary">취소</button>
+                <button id="team-assign-confirm" class="modal-btn modal-btn-primary">할당</button>
             </div>
         </div>
     </div>
