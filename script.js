@@ -33,6 +33,11 @@ class OrgChartSystem {
         this.specialZones = new Map(); // 좌석 ID -> 특별 구역 타입
         this.specialZoneMode = null; // 현재 설정 모드 ('entrance', 'restroom', null)
         
+        // 개별 좌석 색상 관련 속성들
+        this.individualSeatColors = new Map(); // 좌석 ID -> 개별 색상
+        this.selectedGradient = null; // 현재 선택된 그라데이션
+        this.selectedTextColor = null; // 현재 선택된 텍스트 색상
+        
         // 강필구 대표이사님 기본 정보
         this.ceoInfo = {
             name: '강필구',
@@ -123,7 +128,6 @@ class OrgChartSystem {
             teamDropdown: document.getElementById('team-dropdown'),
             teamMemberCount: document.getElementById('team-member-count'),
             teamMembersPreview: document.getElementById('team-members-preview'),
-            customTeamNameInput: document.getElementById('custom-team-name-input'),
             teamMembersList: document.getElementById('team-members-list'),
             selectedSeatsCount: document.getElementById('selected-seats-count'),
             seatTeamMatch: document.getElementById('seat-team-match'),
@@ -228,11 +232,31 @@ class OrgChartSystem {
         // 팀 드롭다운 변경 이벤트
         this.elements.teamDropdown.addEventListener('change', (e) => this.handleTeamDropdownChange(e));
         
+        // 팀원 검색 이벤트
+        const teamMembersSearch = document.getElementById('team-members-search');
+        if (teamMembersSearch) {
+            teamMembersSearch.addEventListener('input', (e) => this.filterTeamMembers(e.target.value));
+        }
+        
         // 색상 모드 변경 이벤트
         const colorModeSelector = document.getElementById('seat-color-mode');
         if (colorModeSelector) {
             colorModeSelector.addEventListener('change', (e) => this.handleColorModeChange(e));
         }
+        
+        // 개별 좌석 색상 설정 이벤트
+        const applyIndividualColorBtn = document.getElementById('apply-individual-color');
+        const resetIndividualColorBtn = document.getElementById('reset-individual-color');
+        
+        if (applyIndividualColorBtn) {
+            applyIndividualColorBtn.addEventListener('click', () => this.applyIndividualSeatColor());
+        }
+        if (resetIndividualColorBtn) {
+            resetIndividualColorBtn.addEventListener('click', () => this.resetIndividualSeatColor());
+        }
+        
+        // 색상 팔레트 초기화
+        this.initializeColorPalette();
         
         // 빠른 작업 버튼 이벤트
         const quickClearSeats = document.getElementById('quick-clear-seats');
@@ -283,6 +307,7 @@ class OrgChartSystem {
             this.updateSeatGrid();
             this.updateTeamCardsList();
             this.updateColorLegend();
+            this.initializeColorPalette();
         }
     }
 
@@ -373,7 +398,13 @@ class OrgChartSystem {
             
             const nameDiv = document.createElement('div');
             nameDiv.className = 'person-name';
+            
+            // 강필구 대표이사인 경우 왕관 추가
+            if (seat.person.name === '강필구' && seat.person.position === '대표이사') {
+                nameDiv.innerHTML = `👑 ${seat.person.name}`;
+            } else {
             nameDiv.textContent = seat.person.name;
+            }
             
             const positionDiv = document.createElement('div');
             positionDiv.className = 'person-position';
@@ -398,8 +429,14 @@ class OrgChartSystem {
             seatElement.classList.add('selected');
         }
         
-        // 색상 모드에 따른 색상 적용
-        if (seat.occupied && seat.person && this.currentColorMode !== 'none') {
+        // 개별 색상이 설정되어 있으면 우선 적용
+        const individualColor = this.individualSeatColors.get(seat.id);
+        if (individualColor) {
+            seatElement.style.background = individualColor.gradient;
+            seatElement.style.color = individualColor.textColor;
+        }
+        // 개별 색상이 없고 색상 모드가 설정되어 있으면 일괄 색상 적용
+        else if (seat.occupied && seat.person && this.currentColorMode !== 'none') {
             this.applySeatColor(seatElement, seat.person);
         }
         
@@ -1383,6 +1420,9 @@ class OrgChartSystem {
         this.people.forEach(person => {
             const memberDiv = document.createElement('div');
             memberDiv.className = 'team-member-item';
+            memberDiv.dataset.name = person.name.toLowerCase();
+            memberDiv.dataset.position = person.position.toLowerCase();
+            memberDiv.dataset.department = person.department.toLowerCase();
             
             memberDiv.innerHTML = `
                 <input type="checkbox" id="member-${person.id}" value="${person.id}">
@@ -1397,6 +1437,24 @@ class OrgChartSystem {
             checkbox.addEventListener('change', () => this.updateSeatTeamMatch());
             
             membersList.appendChild(memberDiv);
+        });
+    }
+
+    // 팀원 검색 필터링
+    filterTeamMembers(searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        const memberItems = this.elements.teamMembersList.querySelectorAll('.team-member-item');
+        
+        memberItems.forEach(item => {
+            const name = item.dataset.name;
+            const position = item.dataset.position;
+            const department = item.dataset.department;
+            
+            const matches = name.includes(searchLower) || 
+                           position.includes(searchLower) || 
+                           department.includes(searchLower);
+            
+            item.style.display = matches ? 'flex' : 'none';
         });
     }
 
@@ -1433,12 +1491,6 @@ class OrgChartSystem {
             
         } else {
             // 개별 팀원 할당
-            teamName = this.elements.customTeamNameInput.value.trim();
-            if (!teamName) {
-                alert('팀명을 입력해주세요.');
-                return;
-            }
-            
             selectedMembers = Array.from(this.elements.teamMembersList.querySelectorAll('input:checked'))
                 .map(checkbox => this.people.find(p => p.id === checkbox.value));
             
@@ -1446,6 +1498,10 @@ class OrgChartSystem {
                 alert('팀원을 선택해주세요.');
                 return;
             }
+            
+            // 선택된 팀원들의 부서를 기반으로 팀명 생성
+            const departments = [...new Set(selectedMembers.map(m => m.department))];
+            teamName = departments.length === 1 ? departments[0] : '혼합팀';
         }
         
         // 팀 카드 생성
@@ -3494,9 +3550,185 @@ class OrgChartSystem {
         return null;
     }
 
+    // 색상 팔레트 초기화
+    initializeColorPalette() {
+        const paletteContainer = document.getElementById('color-palette');
+        if (!paletteContainer) return;
 
+        paletteContainer.innerHTML = '';
+        
+        // 일괄 색상 설정에서 사용되는 그라데이션 색상들을 팔레트로 생성
+        const colors = [
+            // 직급별 색상들 (실제 CSS 그라데이션과 동일)
+            { 
+                gradient: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)',
+                name: '대표이사',
+                textColor: 'white'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)',
+                name: '이사',
+                textColor: 'white'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #45b7d1 0%, #96c93d 100%)',
+                name: '본부장',
+                textColor: 'white'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                name: '실장',
+                textColor: 'white'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                name: '팀장',
+                textColor: 'white'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                name: '파트장',
+                textColor: 'white'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                name: '과장',
+                textColor: '#333'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+                name: '대리',
+                textColor: '#333'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+                name: '주임',
+                textColor: '#333'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #a8caba 0%, #5d4e75 100%)',
+                name: '사원',
+                textColor: 'white'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #d299c2 0%, #fef9d7 100%)',
+                name: '수습',
+                textColor: '#333'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)',
+                name: '매니저',
+                textColor: 'white'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #fdbb2d 0%, #22c1c3 100%)',
+                name: '시니어',
+                textColor: '#333'
+            },
+            // 부서별 색상들
+            { 
+                gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                name: '전략기획실',
+                textColor: 'white'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                name: '경영관리실',
+                textColor: 'white'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                name: '고객지원부',
+                textColor: 'white'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                name: '물류지원부',
+                textColor: 'white'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                name: '브랜드사업부',
+                textColor: '#333'
+            },
+            { 
+                gradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+                name: '브랜드사업부M',
+                textColor: '#333'
+            }
+        ];
 
+        colors.forEach((colorInfo, index) => {
+            const colorItem = document.createElement('div');
+            colorItem.className = 'color-palette-item';
+            colorItem.style.background = colorInfo.gradient;
+            colorItem.dataset.gradient = colorInfo.gradient;
+            colorItem.dataset.textColor = colorInfo.textColor;
+            colorItem.dataset.name = colorInfo.name;
+            colorItem.title = colorInfo.name;
+            
+            colorItem.addEventListener('click', () => this.selectColorFromPalette(colorItem));
+            paletteContainer.appendChild(colorItem);
+        });
+    }
 
+    // 팔레트에서 색상 선택
+    selectColorFromPalette(selectedItem) {
+        // 기존 선택 해제
+        document.querySelectorAll('.color-palette-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+        
+        // 새 선택 적용
+        selectedItem.classList.add('selected');
+        this.selectedGradient = selectedItem.dataset.gradient;
+        this.selectedTextColor = selectedItem.dataset.textColor;
+    }
+
+    // 개별 좌석 색상 적용
+    applyIndividualSeatColor() {
+        if (this.selectedSeats.size === 0) {
+            this.updateStatus('⚠️ 색상을 적용할 좌석을 먼저 선택해주세요!');
+            return;
+        }
+
+        if (!this.selectedGradient) {
+            this.updateStatus('⚠️ 적용할 색상을 먼저 선택해주세요!');
+            return;
+        }
+
+        // 선택된 좌석들에 개별 색상 적용
+        this.selectedSeats.forEach(seatId => {
+            this.individualSeatColors.set(seatId, {
+                gradient: this.selectedGradient,
+                textColor: this.selectedTextColor
+            });
+        });
+
+        // 좌석 그리드 업데이트
+        this.updateSeatGrid();
+        this.updateStatus(`✅ 선택된 ${this.selectedSeats.size}개 좌석에 색상을 적용했습니다!`);
+        this.clearSeatSelection();
+    }
+
+    // 개별 좌석 색상 제거
+    resetIndividualSeatColor() {
+        if (this.selectedSeats.size === 0) {
+            // 선택된 좌석이 없으면 모든 개별 색상 제거
+            this.individualSeatColors.clear();
+            this.updateStatus('🗑️ 모든 개별 좌석 색상을 제거했습니다!');
+        } else {
+            // 선택된 좌석들의 개별 색상만 제거
+            this.selectedSeats.forEach(seatId => {
+                this.individualSeatColors.delete(seatId);
+            });
+            this.updateStatus(`🗑️ 선택된 ${this.selectedSeats.size}개 좌석의 개별 색상을 제거했습니다!`);
+            this.clearSeatSelection();
+        }
+        
+        // 좌석 그리드 업데이트
+        this.updateSeatGrid();
+    }
 
 
 }

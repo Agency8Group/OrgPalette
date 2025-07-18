@@ -92,34 +92,49 @@
         <div id="seat-layout-tab" class="tab-content">
             <div class="control-panel">
                 <div class="seat-controls">
-                    <div class="grid-settings">
-                        <h3>격자 설정</h3>
-                        <div class="grid-settings-row">
-                            <label>가로 좌석 수:</label>
-                            <input type="number" id="grid-cols" value="12">
-                            <label>세로 좌석 수:</label>
-                            <input type="number" id="grid-rows" value="8">
-                            <button id="apply-grid-btn" class="apply-btn">🔄 격자 적용</button>
-                        </div>
-                    </div>
-                    
-
-                    
-                                            <div class="seat-color-settings">
-                        <h3>좌석 색상 설정</h3>
-                        <div class="color-options">
-                            <div class="color-option">
-                                <label>색상 구분:</label>
-                                <select id="seat-color-mode" class="color-mode-selector">
-                                    <option value="none">색상 없음</option>
-                                    <option value="position">직급별 색상</option>
-                                    <option value="department">부서별 색상</option>
-                                </select>
+                    <div class="settings-group">
+                        <div class="settings-row">
+                            <div class="grid-settings">
+                                <h3>격자 설정</h3>
+                                <div class="grid-inputs">
+                                    <div class="input-group">
+                                        <label>가로:</label>
+                                        <input type="number" id="grid-cols" value="12">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>세로:</label>
+                                        <input type="number" id="grid-rows" value="8">
+                                    </div>
+                                    <button id="apply-grid-btn" class="apply-btn">🔄 적용</button>
+                                </div>
+                            </div>
+                            
+                            <div class="color-settings">
+                                <h3>색상 설정</h3>
+                                <div class="color-controls">
+                                    <div class="bulk-color-setting">
+                                        <label>일괄 색상:</label>
+                                        <select id="seat-color-mode" class="color-mode-selector">
+                                            <option value="none">색상 없음</option>
+                                            <option value="position">직급별 색상</option>
+                                            <option value="department">부서별 색상</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="individual-color-setting">
+                                        <label>개별 색상:</label>
+                                        <div class="color-palette" id="color-palette">
+                                            <!-- 색상 팔레트가 여기에 동적으로 생성됩니다 -->
+                                        </div>
+                                        <div class="color-actions">
+                                            <button id="apply-individual-color" class="apply-btn">적용</button>
+                                            <button id="reset-individual-color" class="reset-btn">제거</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    
-
                 </div>
             </div>
 
@@ -202,10 +217,6 @@
                                     <input type="radio" name="interaction-mode" value="click-move">
                                     <span>👆 클릭 이동</span>
                                 </label>
-                                <label>
-                                    <input type="radio" name="interaction-mode" value="context-menu">
-                                    <span>🔧 상세 편집 (우클릭)</span>
-                                </label>
                             </div>
                         </div>
                     </div>
@@ -272,11 +283,10 @@
                 <!-- 개별 팀원 할당 -->
                 <div id="individual-mode-section" class="assign-mode-section" style="display: none;">
                     <div class="form-group">
-                        <label>사용자 정의 팀명:</label>
-                        <input type="text" id="custom-team-name-input" placeholder="팀명 입력">
-                    </div>
-                    <div class="form-group">
                         <label>팀원 선택:</label>
+                        <div class="team-members-search">
+                            <input type="text" id="team-members-search" placeholder="팀원 이름으로 검색...">
+                        </div>
                         <div id="team-members-list" class="team-members-list"></div>
                     </div>
                 </div>
