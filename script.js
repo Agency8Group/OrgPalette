@@ -15,7 +15,7 @@ class OrgChartSystem {
         this.teamCards = [];
         this.isSelecting = false;
         this.dragStartSeat = null;
-        this.gridCols = 10;
+        this.gridCols = 12;
         this.gridRows = 8;
         this.seatZoom = 1;
         this.seatPanX = 0;
@@ -28,6 +28,10 @@ class OrgChartSystem {
         
         // 색상 모드 관련 속성들
         this.currentColorMode = 'none';
+        
+        // 특별 구역 관련 속성들
+        this.specialZones = new Map(); // 좌석 ID -> 특별 구역 타입
+        this.specialZoneMode = null; // 현재 설정 모드 ('entrance', 'restroom', null)
         
         // 강필구 대표이사님 기본 정보
         this.ceoInfo = {
@@ -103,9 +107,9 @@ class OrgChartSystem {
             seatLayoutTab: document.getElementById('seat-layout-tab'),
             
             // 자리배치도 관련 요소들
-            gridCols: document.getElementById('grid-cols'),
-            gridRows: document.getElementById('grid-rows'),
-            applyGridBtn: document.getElementById('apply-grid-btn'),
+            gridCols: null,
+            gridRows: null,
+            applyGridBtn: null,
             seatGrid: document.getElementById('seat-grid'),
             teamCardsList: document.getElementById('team-cards-list'),
             seatInfo: document.getElementById('seat-info'),
@@ -166,16 +170,29 @@ class OrgChartSystem {
         });
         
         // 자리배치도 관련 이벤트 리스너들
-        this.elements.applyGridBtn.addEventListener('click', () => this.applyGridSettings());
+        // this.elements.applyGridBtn.addEventListener('click', () => this.applyGridSettings());
         this.elements.seatZoomInBtn.addEventListener('click', () => this.seatZoomIn());
         this.elements.seatZoomOutBtn.addEventListener('click', () => this.seatZoomOut());
         this.elements.seatResetZoomBtn.addEventListener('click', () => this.resetSeatZoom());
         this.elements.seatCenterBtn.addEventListener('click', () => this.centerSeatView());
+        
+        // 특별 구역 설정 이벤트 리스너들
+        document.getElementById('quick-set-entrance').addEventListener('click', () => this.setSpecialZone('entrance'));
+        document.getElementById('quick-set-restroom').addEventListener('click', () => this.setSpecialZone('restroom'));
+        document.getElementById('quick-clear-special').addEventListener('click', () => this.clearSpecialZones());
+        
+        // 빠른 작업 버튼 이벤트 리스너들
+        document.getElementById('quick-clear-seats').addEventListener('click', () => this.quickClearSelectedSeats());
+        document.getElementById('quick-assign-team').addEventListener('click', () => this.quickAssignTeamToSeats());
+        document.getElementById('quick-save-layout').addEventListener('click', () => this.saveLayout());
+        document.getElementById('quick-load-layout').addEventListener('click', () => this.loadLayout());
+        document.getElementById('quick-clear-selection').addEventListener('click', () => this.clearSeatSelection());
+        document.getElementById('quick-export-pdf').addEventListener('click', () => this.exportSeatLayoutToPDF());
 
         
-        // 격자 설정 입력 필드 실시간 검증
-        this.elements.gridCols.addEventListener('input', (e) => this.validateGridInput(e, 'cols'));
-        this.elements.gridRows.addEventListener('input', (e) => this.validateGridInput(e, 'rows'));
+        // 격자 설정 입력 필드 실시간 검증 (제거됨)
+        // this.elements.gridCols.addEventListener('input', (e) => this.validateGridInput(e, 'cols'));
+        // this.elements.gridRows.addEventListener('input', (e) => this.validateGridInput(e, 'rows'));
         
         // 자리배치도 마우스 드래그 패닝 이벤트
         this.setupSeatPanning();
@@ -272,6 +289,9 @@ class OrgChartSystem {
     // 자리배치도 격자 초기화
     initializeSeatGrid() {
         this.seatGrid = [];
+        // 항상 12x8로 고정
+        this.gridCols = 12;
+        this.gridRows = 8;
         for (let row = 0; row < this.gridRows; row++) {
             this.seatGrid[row] = [];
             for (let col = 0; col < this.gridCols; col++) {
@@ -290,41 +310,17 @@ class OrgChartSystem {
 
     // 격자 설정 입력 필드 실시간 검증
     validateGridInput(event, type) {
-        const input = event.target;
-        let value = parseInt(input.value);
-        
-        if (type === 'cols') {
-            // 가로 좌석 수: 5~12칸
-            if (value < 5) value = 5;
-            if (value > 12) value = 12;
-        } else if (type === 'rows') {
-            // 세로 좌석 수: 5~8칸
-            if (value < 5) value = 5;
-            if (value > 8) value = 8;
-        }
-        
-        // 값이 변경되었으면 입력 필드 업데이트
-        if (parseInt(input.value) !== value) {
-            input.value = value;
-        }
+        // 제한 없이 입력값 그대로 사용
     }
 
     // 격자 설정 적용
     applyGridSettings() {
-        const newCols = parseInt(this.elements.gridCols.value);
-        const newRows = parseInt(this.elements.gridRows.value);
-        
-        // 최대값 제한: 가로 12칸, 세로 8칸
-        if (newCols < 5 || newCols > 12 || newRows < 5 || newRows > 8) {
-            alert('격자 크기는 가로 5~12칸, 세로 5~8칸 사이여야 합니다.');
-            return;
-        }
-        
-        this.gridCols = newCols;
-        this.gridRows = newRows;
+        // 고정값만 사용, 아무 동작도 하지 않음
+        this.gridCols = 12;
+        this.gridRows = 8;
         this.initializeSeatGrid();
         this.updateSeatGrid();
-        this.updateStatus(`격자가 ${this.gridCols}x${this.gridRows}로 변경되었습니다.`);
+        this.updateStatus(`격자가 12x8로 고정되어 있습니다.`);
     }
 
     // 자리배치도 격자 업데이트
@@ -346,6 +342,11 @@ class OrgChartSystem {
         
         // 좌석 선택 이벤트 설정
         this.setupSeatEvents();
+        
+        // 특별 구역 정보 복원
+        this.specialZones.forEach((zoneType, seatId) => {
+            this.updateSeatSpecialZone(seatId, zoneType);
+        });
     }
 
     // 좌석 요소 생성
@@ -355,6 +356,7 @@ class OrgChartSystem {
         seatElement.dataset.row = seat.row;
         seatElement.dataset.col = seat.col;
         seatElement.dataset.id = seat.id;
+        seatElement.dataset.seatId = seat.id; // 특별 구역 설정을 위한 속성 추가
         
         // 좌석 라벨 (좌표)
         const label = document.createElement('div');
@@ -400,6 +402,25 @@ class OrgChartSystem {
         // 색상 모드에 따른 색상 적용
         if (seat.occupied && seat.person && this.currentColorMode !== 'none') {
             this.applySeatColor(seatElement, seat.person);
+        }
+        
+        // 특별 구역 정보가 있으면 적용
+        const specialZoneType = this.specialZones.get(seat.id);
+        if (specialZoneType) {
+            seatElement.classList.add(`special-${specialZoneType}`);
+            
+            // 특별 구역 라벨 업데이트
+            const labelElement = seatElement.querySelector('.seat-label');
+            if (labelElement) {
+                const zoneLabel = specialZoneType === 'entrance' ? '🚪 입구' : '🚽 화장실';
+                labelElement.textContent = zoneLabel;
+            }
+            
+            // 팀원 정보 숨김
+            const personElement = seatElement.querySelector('.seat-person');
+            if (personElement) {
+                personElement.style.display = 'none';
+            }
         }
         
         return seatElement;
@@ -835,17 +856,58 @@ class OrgChartSystem {
     }
 
     showSeatInfo(seat) {
-        let info = `좌석 위치: ${seat.row + 1}행 ${seat.col + 1}열\n`;
+        const seatInfo = this.elements.seatInfo;
+        
+        if (!seat) {
+            seatInfo.innerHTML = '<p class="no-selection">좌석을 선택하세요</p>';
+            return;
+        }
+
+        let infoHTML = `
+            <div class="seat-info-item">
+                <span class="seat-info-label">좌석:</span>
+                <span class="seat-info-value">${seat.row + 1}-${seat.col + 1}</span>
+            </div>
+        `;
+
+        // 특별 구역 정보 추가
+        const specialZoneType = this.specialZones.get(seat.id);
+        if (specialZoneType) {
+            const zoneName = specialZoneType === 'entrance' ? '🚪 입구 구역' : '🚽 화장실 구역';
+            infoHTML += `
+                <div class="seat-info-item">
+                    <span class="seat-info-label">특별 구역:</span>
+                    <span class="seat-info-value">${zoneName}</span>
+                </div>
+            `;
+        }
+
+        // 기존 정보들 추가
         if (seat.person) {
-            info += `사용자: ${seat.person.name} (${seat.person.position})\n`;
+            infoHTML += `
+                <div class="seat-info-item">
+                    <span class="seat-info-label">이름:</span>
+                    <span class="seat-info-value">${seat.person.name}</span>
+                </div>
+                <div class="seat-info-item">
+                    <span class="seat-info-label">직급:</span>
+                    <span class="seat-info-value">${seat.person.position}</span>
+                </div>
+                <div class="seat-info-item">
+                    <span class="seat-info-label">부서:</span>
+                    <span class="seat-info-value">${seat.person.department}</span>
+                </div>
+            `;
+        } else {
+            infoHTML += `
+                <div class="seat-info-item">
+                    <span class="seat-info-label">상태:</span>
+                    <span class="seat-info-value">빈 좌석</span>
+                </div>
+            `;
         }
-        if (seat.teamCard) {
-            info += `팀: ${seat.teamCard.name}\n`;
-        }
-        if (!seat.occupied) {
-            info += `상태: 빈 좌석\n`;
-        }
-        alert(info);
+
+        seatInfo.innerHTML = infoHTML;
     }
 
     // 좌석 선택
@@ -864,6 +926,7 @@ class OrgChartSystem {
             seat.selected = true;
             this.selectedSeats.add(seat.id);
         }
+
         this.updateSeatVisual(seat);
     }
 
@@ -1416,6 +1479,11 @@ class OrgChartSystem {
         this.clearSeatSelection();
         this.hideTeamAssignModal();
         
+        // 특별 구역 정보 복원
+        this.specialZones.forEach((zoneType, seatId) => {
+            this.updateSeatSpecialZone(seatId, zoneType);
+        });
+        
         // 색상 모드가 활성화된 경우 색상 재적용
         if (this.currentColorMode !== 'none') {
             this.applySeatColors();
@@ -1595,7 +1663,8 @@ class OrgChartSystem {
             gridCols: this.gridCols,
             gridRows: this.gridRows,
             seatGrid: this.seatGrid,
-            teamCards: this.teamCards
+            teamCards: this.teamCards,
+            specialZones: Array.from(this.specialZones.entries()) // 특별 구역 정보 포함
         };
         
         const dataStr = JSON.stringify(layoutData, null, 2);
@@ -1608,7 +1677,7 @@ class OrgChartSystem {
         link.click();
         
         URL.revokeObjectURL(url);
-        this.updateStatus('자리배치도가 저장되었습니다.');
+        this.updateStatus('💾 자리배치도가 저장되었습니다!');
     }
 
     loadLayout() {
@@ -1630,13 +1699,25 @@ class OrgChartSystem {
                     this.seatGrid = layoutData.seatGrid;
                     this.teamCards = layoutData.teamCards || [];
                     
-                    this.elements.gridCols.value = this.gridCols;
-                    this.elements.gridRows.value = this.gridRows;
+                    // 특별 구역 데이터 복원
+                    if (layoutData.specialZones) {
+                        this.specialZones = new Map(layoutData.specialZones);
+                    } else {
+                        this.specialZones.clear();
+                    }
+                    
+                    // this.elements.gridCols.value = this.gridCols;
+                    // this.elements.gridRows.value = this.gridRows;
                     
                     this.updateSeatGrid();
                     this.updateTeamCardsList();
                     
-                    this.updateStatus('자리배치도가 불러와졌습니다.');
+                    // 특별 구역 시각적 복원
+                    this.specialZones.forEach((zoneType, seatId) => {
+                        this.updateSeatSpecialZone(seatId, zoneType);
+                    });
+                    
+                    this.updateStatus('📁 자리배치도가 불러와졌습니다!');
                 } catch (error) {
                     alert('파일을 읽는 중 오류가 발생했습니다.');
                     console.error('Layout loading error:', error);
@@ -3301,6 +3382,117 @@ class OrgChartSystem {
 
     generateId() {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    // 특별 구역 설정 메서드들
+    setSpecialZone(zoneType) {
+        if (this.selectedSeats.size === 0) {
+            this.updateStatus('⚠️ 특별 구역을 설정할 좌석을 먼저 선택해주세요!');
+            return;
+        }
+
+        // 선택된 좌석 중 팀이 할당된 좌석이 있는지 확인
+        const teamAssignedSeats = Array.from(this.selectedSeats).filter(seatId => {
+            const [row, col] = seatId.split('-').slice(1).map(Number);
+            const seat = this.seatGrid[row][col];
+            return seat.teamCard || seat.occupied;
+        });
+
+        if (teamAssignedSeats.length > 0) {
+            const proceed = confirm(
+                `선택된 좌석 중 ${teamAssignedSeats.length}개 좌석에 팀이 할당되어 있습니다.\n` +
+                `특별 구역으로 설정하면 기존 팀 할당이 해제됩니다.\n` +
+                `계속 진행하시겠습니까?`
+            );
+            if (!proceed) return;
+        }
+
+        // 기존 특별 구역 모드 해제
+        this.specialZoneMode = null;
+        
+        // 선택된 좌석들을 특별 구역으로 설정
+        this.selectedSeats.forEach(seatId => {
+            this.specialZones.set(seatId, zoneType);
+            this.updateSeatSpecialZone(seatId, zoneType);
+        });
+
+        const zoneName = zoneType === 'entrance' ? '입구' : '화장실';
+        this.updateStatus(`✅ 선택된 ${this.selectedSeats.size}개 좌석을 ${zoneName} 구역으로 설정했습니다!`);
+        
+        // 선택 해제
+        this.clearSeatSelection();
+    }
+
+    clearSpecialZones() {
+        if (this.selectedSeats.size === 0) {
+            // 선택된 좌석이 없으면 모든 특별 구역 해제
+            this.specialZones.clear();
+            this.updateStatus('🗑️ 모든 특별 구역을 해제했습니다!');
+        } else {
+            // 선택된 좌석들의 특별 구역만 해제
+            this.selectedSeats.forEach(seatId => {
+                this.specialZones.delete(seatId);
+            });
+            this.updateStatus(`🗑️ 선택된 ${this.selectedSeats.size}개 좌석의 특별 구역을 해제했습니다!`);
+            this.clearSeatSelection();
+        }
+        
+        // 좌석 그리드를 완전히 다시 생성하여 깔끔하게 정리
+        this.updateSeatGrid();
+    }
+
+    updateSeatSpecialZone(seatId, zoneType) {
+        let seatElement = document.querySelector(`[data-seat-id="${seatId}"]`);
+        if (!seatElement) {
+            // data-seat-id로 찾지 못하면 data-id로도 시도
+            seatElement = document.querySelector(`[data-id="${seatId}"]`);
+            if (!seatElement) {
+                return;
+            }
+        }
+
+        // 기존 특별 구역 클래스 제거
+        seatElement.classList.remove('special-entrance', 'special-restroom');
+        
+        // 새로운 특별 구역 클래스 추가
+        if (zoneType) {
+            seatElement.classList.add(`special-${zoneType}`);
+            
+            // 특별 구역 라벨 업데이트
+            const labelElement = seatElement.querySelector('.seat-label');
+            if (labelElement) {
+                const zoneLabel = zoneType === 'entrance' ? '🚪 입구' : '🚽 화장실';
+                labelElement.textContent = zoneLabel;
+            }
+            
+            // 기존 팀원 정보 제거
+            const personElement = seatElement.querySelector('.seat-person');
+            if (personElement) {
+                personElement.remove();
+            }
+            
+            // 좌석 데이터에서도 팀원 정보 제거
+            const seat = this.findSeatById(seatId);
+            if (seat) {
+                seat.person = null;
+                seat.occupied = false;
+                seat.teamCard = null;
+            }
+        } else {
+            // 특별 구역 해제 시에는 updateSeatGrid()에서 처리하므로 여기서는 아무것도 하지 않음
+            // 좌석 그리드가 다시 생성되면서 자동으로 올바른 상태로 복원됨
+        }
+    }
+
+    findSeatById(seatId) {
+        for (let row of this.seatGrid) {
+            for (let seat of row) {
+                if (seat.id === seatId) {
+                    return seat;
+                }
+            }
+        }
+        return null;
     }
 
 

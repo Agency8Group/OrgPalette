@@ -92,20 +92,7 @@
         <div id="seat-layout-tab" class="tab-content">
             <div class="control-panel">
                 <div class="seat-controls">
-                    <div class="grid-settings">
-                        <h3>격자 설정</h3>
-                        <div class="grid-settings-row">
-                            <label>가로 좌석 수:</label>
-                            <input type="number" id="grid-cols" value="10" min="5" max="12">
-                            <label>세로 좌석 수:</label>
-                            <input type="number" id="grid-rows" value="8" min="5" max="8">
-                            <button id="apply-grid-btn" class="apply-btn">🔄 격자 적용</button>
-                        </div>
-                    </div>
-                    
-
-                    
-                                            <div class="seat-color-settings">
+                    <div class="seat-color-settings">
                         <h3>좌석 색상 설정</h3>
                         <div class="color-options">
                             <div class="color-option">
@@ -143,6 +130,15 @@
                                 <button id="quick-load-layout" class="quick-action-btn">📁 불러오기</button>
                                 <button id="quick-clear-selection" class="quick-action-btn">❌ 선택 해제</button>
                                 <button id="quick-export-pdf" class="quick-action-btn">📄 PDF 내보내기</button>
+                            </div>
+                            
+                            <div class="special-zone-actions">
+                                <h5>🏢 특별 구역 설정</h5>
+                                <div class="special-zone-buttons">
+                                    <button id="quick-set-entrance" class="special-zone-btn entrance-btn">🚪 입구 설정</button>
+                                    <button id="quick-set-restroom" class="special-zone-btn restroom-btn">🚽 화장실 설정</button>
+                                    <button id="quick-clear-special" class="special-zone-btn clear-btn">🗑️ 특별구역 해제</button>
+                                </div>
                             </div>
                         </div>
                         
