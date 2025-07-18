@@ -539,6 +539,8 @@
     z-index: 1000;
     min-width: 200px;
     padding: 8px 0;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .context-menu-item {
@@ -694,6 +696,239 @@
 
 .seat-team-match.no-match {
     color: #e53e3e;
+}
+
+/* 좌석 색상 설정 스타일 */
+.seat-color-settings {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.seat-color-settings h3 {
+    margin-bottom: 15px;
+    color: #4a5568;
+    font-size: 1.2em;
+}
+
+.color-options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.color-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.color-option label {
+    font-weight: 600;
+    color: #4a5568;
+    min-width: 120px;
+}
+
+.color-mode-selector {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.color-mode-selector:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.color-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid #cbd5e0;
+}
+
+/* 직급별 색상 */
+.seat.position-ceo {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+    color: white;
+}
+
+.seat.position-이사 {
+    background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+    color: white;
+}
+
+.seat.position-본부장 {
+    background: linear-gradient(135deg, #45b7d1 0%, #96c93d 100%);
+    color: white;
+}
+
+.seat.position-실장 {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.seat.position-팀장 {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.seat.position-파트장 {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    color: white;
+}
+
+.seat.position-과장 {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: #333;
+}
+
+.seat.position-대리 {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    color: #333;
+}
+
+.seat.position-주임 {
+    background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+    color: #333;
+}
+
+.seat.position-사원 {
+    background: linear-gradient(135deg, #a8caba 0%, #5d4e75 100%);
+    color: white;
+}
+
+.seat.position-수습 {
+    background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%);
+    color: #333;
+}
+
+.seat.position-매니저 {
+    background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+    color: white;
+}
+
+.seat.position-시니어 {
+    background: linear-gradient(135deg, #fdbb2d 0%, #22c1c3 100%);
+    color: #333;
+}
+
+/* 부서별 색상 */
+.seat.department-전략기획실 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.seat.department-경영관리실 {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.seat.department-고객지원부 {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.seat.department-물류지원부 {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    color: white;
+}
+
+.seat.department-브랜드사업부 {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: #333;
+}
+
+.seat.department-브랜드사업부M {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    color: #333;
+}
+
+
+
+/* 좌석 관리 패널 스타일 */
+.seat-management-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.seat-management-section {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.seat-management-section h4 {
+    margin: 0 0 10px 0;
+    color: #4a5568;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.selected-seats-display {
+    padding: 8px 12px;
+    background: #f7fafc;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: 500;
+    color: #2d3748;
+}
+
+.quick-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.quick-action-btn {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    color: #4a5568;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.quick-action-btn:hover {
+    background: #f7fafc;
+    border-color: #cbd5e0;
+    transform: translateY(-1px);
+}
+
+.quick-action-btn:active {
+    transform: translateY(0);
 }
 
 .team-members-list {
@@ -1143,6 +1378,8 @@ header p {
     transform: translateY(-2px);
     box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
 }
+
+
 
 /* 메인 컨텐츠 스타일 */
 .main-content {

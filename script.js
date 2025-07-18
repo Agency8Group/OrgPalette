@@ -26,6 +26,9 @@ class OrgChartSystem {
         this.clickMoveSource = null;
         this.contextMenu = null;
         
+        // 색상 모드 관련 속성들
+        this.currentColorMode = 'none';
+        
         // 강필구 대표이사님 기본 정보
         this.ceoInfo = {
             name: '강필구',
@@ -103,10 +106,6 @@ class OrgChartSystem {
             gridCols: document.getElementById('grid-cols'),
             gridRows: document.getElementById('grid-rows'),
             applyGridBtn: document.getElementById('apply-grid-btn'),
-            clearSelectionBtn: document.getElementById('clear-selection-btn'),
-            assignTeamBtn: document.getElementById('assign-team-btn'),
-            saveLayoutBtn: document.getElementById('save-layout-btn'),
-            loadLayoutBtn: document.getElementById('load-layout-btn'),
             seatGrid: document.getElementById('seat-grid'),
             teamCardsList: document.getElementById('team-cards-list'),
             seatInfo: document.getElementById('seat-info'),
@@ -127,10 +126,7 @@ class OrgChartSystem {
             teamModeSection: document.getElementById('team-mode-section'),
             individualModeSection: document.getElementById('individual-mode-section'),
             teamAssignCancel: document.getElementById('team-assign-cancel'),
-            teamAssignConfirm: document.getElementById('team-assign-confirm'),
-            
-            // 자리배치도 PDF 내보내기 버튼
-            exportSeatPdfBtn: document.getElementById('export-seat-pdf-btn')
+            teamAssignConfirm: document.getElementById('team-assign-confirm')
         };
         
         // 입력 행 카운터
@@ -146,6 +142,7 @@ class OrgChartSystem {
         this.elements.clearAllBtn.addEventListener('click', () => this.clearAll());
         this.elements.exportExcelBtn.addEventListener('click', () => this.exportToExcel());
         this.elements.exportPdfBtn.addEventListener('click', () => this.exportToPDF(true));
+
         this.elements.zoomInBtn.addEventListener('click', () => this.zoomIn());
         this.elements.zoomOutBtn.addEventListener('click', () => this.zoomOut());
         this.elements.resetZoomBtn.addEventListener('click', () => this.resetZoom());
@@ -170,15 +167,15 @@ class OrgChartSystem {
         
         // 자리배치도 관련 이벤트 리스너들
         this.elements.applyGridBtn.addEventListener('click', () => this.applyGridSettings());
-        this.elements.clearSelectionBtn.addEventListener('click', () => this.clearSeatSelection());
-        this.elements.assignTeamBtn.addEventListener('click', () => this.showTeamAssignModal());
-        this.elements.saveLayoutBtn.addEventListener('click', () => this.saveLayout());
-        this.elements.loadLayoutBtn.addEventListener('click', () => this.loadLayout());
         this.elements.seatZoomInBtn.addEventListener('click', () => this.seatZoomIn());
         this.elements.seatZoomOutBtn.addEventListener('click', () => this.seatZoomOut());
         this.elements.seatResetZoomBtn.addEventListener('click', () => this.resetSeatZoom());
         this.elements.seatCenterBtn.addEventListener('click', () => this.centerSeatView());
-        this.elements.exportSeatPdfBtn.addEventListener('click', () => this.exportSeatLayoutToPDF());
+
+        
+        // 격자 설정 입력 필드 실시간 검증
+        this.elements.gridCols.addEventListener('input', (e) => this.validateGridInput(e, 'cols'));
+        this.elements.gridRows.addEventListener('input', (e) => this.validateGridInput(e, 'rows'));
         
         // 자리배치도 마우스 드래그 패닝 이벤트
         this.setupSeatPanning();
@@ -214,6 +211,39 @@ class OrgChartSystem {
         // 팀 드롭다운 변경 이벤트
         this.elements.teamDropdown.addEventListener('change', (e) => this.handleTeamDropdownChange(e));
         
+        // 색상 모드 변경 이벤트
+        const colorModeSelector = document.getElementById('seat-color-mode');
+        if (colorModeSelector) {
+            colorModeSelector.addEventListener('change', (e) => this.handleColorModeChange(e));
+        }
+        
+        // 빠른 작업 버튼 이벤트
+        const quickClearSeats = document.getElementById('quick-clear-seats');
+        const quickAssignTeam = document.getElementById('quick-assign-team');
+        const quickSaveLayout = document.getElementById('quick-save-layout');
+        const quickLoadLayout = document.getElementById('quick-load-layout');
+        const quickClearSelection = document.getElementById('quick-clear-selection');
+        const quickExportPdf = document.getElementById('quick-export-pdf');
+        
+        if (quickClearSeats) {
+            quickClearSeats.addEventListener('click', () => this.quickClearSelectedSeats());
+        }
+        if (quickAssignTeam) {
+            quickAssignTeam.addEventListener('click', () => this.quickAssignTeamToSeats());
+        }
+        if (quickSaveLayout) {
+            quickSaveLayout.addEventListener('click', () => this.saveLayout());
+        }
+        if (quickLoadLayout) {
+            quickLoadLayout.addEventListener('click', () => this.loadLayout());
+        }
+        if (quickClearSelection) {
+            quickClearSelection.addEventListener('click', () => this.clearSeatSelection());
+        }
+        if (quickExportPdf) {
+            quickExportPdf.addEventListener('click', () => this.exportSeatLayoutToPDF());
+        }
+        
         // 전역 클릭 이벤트 (컨텍스트 메뉴 닫기)
         document.addEventListener('click', (e) => this.handleGlobalClick(e));
     }
@@ -235,6 +265,7 @@ class OrgChartSystem {
         if (tabName === 'seat-layout') {
             this.updateSeatGrid();
             this.updateTeamCardsList();
+            this.updateColorLegend();
         }
     }
 
@@ -257,13 +288,35 @@ class OrgChartSystem {
         }
     }
 
+    // 격자 설정 입력 필드 실시간 검증
+    validateGridInput(event, type) {
+        const input = event.target;
+        let value = parseInt(input.value);
+        
+        if (type === 'cols') {
+            // 가로 좌석 수: 5~12칸
+            if (value < 5) value = 5;
+            if (value > 12) value = 12;
+        } else if (type === 'rows') {
+            // 세로 좌석 수: 5~8칸
+            if (value < 5) value = 5;
+            if (value > 8) value = 8;
+        }
+        
+        // 값이 변경되었으면 입력 필드 업데이트
+        if (parseInt(input.value) !== value) {
+            input.value = value;
+        }
+    }
+
     // 격자 설정 적용
     applyGridSettings() {
         const newCols = parseInt(this.elements.gridCols.value);
         const newRows = parseInt(this.elements.gridRows.value);
         
-        if (newCols < 5 || newCols > 50 || newRows < 5 || newRows > 50) {
-            alert('격자 크기는 5x5에서 50x50 사이여야 합니다.');
+        // 최대값 제한: 가로 12칸, 세로 8칸
+        if (newCols < 5 || newCols > 12 || newRows < 5 || newRows > 8) {
+            alert('격자 크기는 가로 5~12칸, 세로 5~8칸 사이여야 합니다.');
             return;
         }
         
@@ -342,6 +395,11 @@ class OrgChartSystem {
         
         if (seat.selected) {
             seatElement.classList.add('selected');
+        }
+        
+        // 색상 모드에 따른 색상 적용
+        if (seat.occupied && seat.person && this.currentColorMode !== 'none') {
+            this.applySeatColor(seatElement, seat.person);
         }
         
         return seatElement;
@@ -641,6 +699,8 @@ class OrgChartSystem {
         
         const menu = document.createElement('div');
         menu.className = 'context-menu';
+        
+        // 마우스 위치에 바로 표시
         menu.style.left = x + 'px';
         menu.style.top = y + 'px';
         
@@ -886,6 +946,11 @@ class OrgChartSystem {
         this.updateSeatGrid();
         
         this.updateStatus(`배치 변경 모드가 ${modeNames[this.interactionMode]}로 변경되었습니다.`);
+        
+        // 상세 편집 모드일 때 안내 메시지 추가
+        if (this.interactionMode === 'context-menu') {
+            this.updateStatus('🔧 상세 편집 모드: 좌석에서 우클릭하여 편집 메뉴를 사용하세요.');
+        }
     }
 
     // 좌석 정보 업데이트
@@ -937,6 +1002,45 @@ class OrgChartSystem {
     // 선택된 좌석 수 업데이트
     updateSelectedSeatsCount() {
         this.elements.selectedSeatsCount.textContent = this.selectedSeats.size;
+        
+        // 좌석 관리 패널의 선택된 좌석 표시도 업데이트
+        const selectedSeatsDisplay = document.getElementById('selected-seats-display');
+        if (selectedSeatsDisplay) {
+            selectedSeatsDisplay.textContent = `${this.selectedSeats.size}개 선택됨`;
+        }
+    }
+
+    // 빠른 작업: 선택된 좌석 비우기
+    quickClearSelectedSeats() {
+        if (this.selectedSeats.size === 0) {
+            alert('선택된 좌석이 없습니다.');
+            return;
+        }
+        
+        const proceed = confirm(`선택된 ${this.selectedSeats.size}개 좌석을 모두 비우시겠습니까?`);
+        if (!proceed) return;
+        
+        this.selectedSeats.forEach(seatId => {
+            const [row, col] = seatId.split('-').slice(1).map(Number);
+            const seat = this.seatGrid[row][col];
+            seat.person = null;
+            seat.occupied = false;
+            seat.teamCard = null;
+        });
+        
+        this.updateSeatGrid();
+        this.clearSeatSelection();
+        this.updateStatus(`${this.selectedSeats.size}개 좌석이 비워졌습니다.`);
+    }
+
+    // 빠른 작업: 선택된 좌석에 팀 할당
+    quickAssignTeamToSeats() {
+        if (this.selectedSeats.size === 0) {
+            alert('선택된 좌석이 없습니다.');
+            return;
+        }
+        
+        this.showTeamAssignModal();
     }
 
     // 팀 할당 모달 표시
@@ -1037,6 +1141,152 @@ class OrgChartSystem {
         }
         
         this.updateSeatTeamMatch();
+    }
+
+    // 색상 모드 변경 핸들러
+    handleColorModeChange(event) {
+        const colorMode = event.target.value;
+        this.currentColorMode = colorMode;
+        
+        // 모든 좌석의 색상 클래스 제거
+        this.elements.seatGrid.querySelectorAll('.seat').forEach(seatElement => {
+            this.removeSeatColorClasses(seatElement);
+        });
+        
+        // 새로운 색상 모드 적용
+        this.applySeatColors();
+        
+        // 색상 범례 업데이트
+        this.updateColorLegend();
+        
+        this.updateStatus(`좌석 색상이 ${this.getColorModeDisplayName(colorMode)}로 변경되었습니다.`);
+    }
+
+    // 좌석 색상 클래스 제거
+    removeSeatColorClasses(seatElement) {
+        seatElement.classList.remove(
+            'position-ceo', 'position-이사', 'position-본부장', 'position-실장', 'position-팀장',
+            'position-파트장', 'position-과장', 'position-대리', 'position-주임', 'position-사원',
+            'position-수습', 'position-매니저', 'position-시니어',
+            'department-전략기획실', 'department-경영관리실', 'department-고객지원부',
+            'department-물류지원부', 'department-브랜드사업부', 'department-브랜드사업부M'
+        );
+    }
+
+    // 좌석 색상 적용
+    applySeatColors() {
+        if (this.currentColorMode === 'none') return;
+        
+        this.elements.seatGrid.querySelectorAll('.seat').forEach(seatElement => {
+            const row = parseInt(seatElement.dataset.row);
+            const col = parseInt(seatElement.dataset.col);
+            const seat = this.seatGrid[row][col];
+            
+            if (seat.occupied && seat.person) {
+                this.applySeatColor(seatElement, seat.person);
+            }
+        });
+    }
+
+    // 개별 좌석 색상 적용
+    applySeatColor(seatElement, person) {
+        if (this.currentColorMode === 'position') {
+            this.applyPositionColor(seatElement, person.position);
+        } else if (this.currentColorMode === 'department') {
+            this.applyDepartmentColor(seatElement, person.department);
+        } else if (this.currentColorMode === 'team') {
+            this.applyTeamColor(seatElement, person.department);
+        }
+    }
+
+    // 직급별 색상 적용
+    applyPositionColor(seatElement, position) {
+        const positionClass = this.getPositionClass(position);
+        if (positionClass) {
+            seatElement.classList.add(positionClass);
+        }
+    }
+
+    // 부서별 색상 적용
+    applyDepartmentColor(seatElement, department) {
+        const departmentClass = this.getDepartmentClass(department);
+        if (departmentClass) {
+            seatElement.classList.add(departmentClass);
+        }
+    }
+
+    // 팀별 색상 적용 (부서와 동일)
+    applyTeamColor(seatElement, department) {
+        this.applyDepartmentColor(seatElement, department);
+    }
+
+    // 직급 클래스명 생성
+    getPositionClass(position) {
+        if (!position) return null;
+        
+        // 직급명 정규화
+        const normalizedPosition = position.replace(/[()]/g, '').trim();
+        return `position-${normalizedPosition}`;
+    }
+
+    // 부서 클래스명 생성
+    getDepartmentClass(department) {
+        if (!department) return null;
+        
+        // 부서명 정규화 (괄호 제거)
+        const normalizedDepartment = department.replace(/[()]/g, '').trim();
+        return `department-${normalizedDepartment}`;
+    }
+
+    // 색상 모드 표시명
+    getColorModeDisplayName(mode) {
+        const modeNames = {
+            'none': '색상 없음',
+            'position': '직급별 색상',
+            'department': '부서별 색상',
+            'team': '팀별 색상'
+        };
+        return modeNames[mode] || mode;
+    }
+
+
+
+    // 색상 범례 업데이트 (간소화)
+    updateColorLegend() {
+        // 색상 범례는 드롭다운으로 변경되어 더 이상 필요하지 않음
+        return;
+    }
+
+    // 범례 데이터 생성
+    getLegendData() {
+        if (this.currentColorMode === 'position') {
+            return [
+                { label: 'CEO', color: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)' },
+                { label: '이사', color: 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)' },
+                { label: '본부장', color: 'linear-gradient(135deg, #45b7d1 0%, #96c93d 100%)' },
+                { label: '실장', color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
+                { label: '팀장', color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
+                { label: '파트장', color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' },
+                { label: '과장', color: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' },
+                { label: '대리', color: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' },
+                { label: '주임', color: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)' },
+                { label: '사원', color: 'linear-gradient(135deg, #a8caba 0%, #5d4e75 100%)' },
+                { label: '수습', color: 'linear-gradient(135deg, #d299c2 0%, #fef9d7 100%)' },
+                { label: '매니저', color: 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)' },
+                { label: '시니어', color: 'linear-gradient(135deg, #fdbb2d 0%, #22c1c3 100%)' }
+            ];
+        } else if (this.currentColorMode === 'department' || this.currentColorMode === 'team') {
+            return [
+                { label: '전략기획실', color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+                { label: '경영관리실', color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
+                { label: '고객지원부', color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
+                { label: '물류지원부', color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' },
+                { label: '브랜드사업부', color: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' },
+                { label: '브랜드사업부(M)', color: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' }
+            ];
+        }
+        
+        return [];
     }
 
     // 좌석 수와 팀원 수 비교
@@ -1171,6 +1421,11 @@ class OrgChartSystem {
         this.updateTeamCardsList();
         this.clearSeatSelection();
         this.hideTeamAssignModal();
+        
+        // 색상 모드가 활성화된 경우 색상 재적용
+        if (this.currentColorMode !== 'none') {
+            this.applySeatColors();
+        }
         
         this.updateStatus(`팀 "${teamName}"이 ${teamCard.seats.length}개 좌석에 할당되었습니다.`);
     }
@@ -1900,27 +2155,7 @@ class OrgChartSystem {
             { id: '60', name: '박시연', position: '수습', task: '압타밀 마케팅', department: '브랜드사업부(M)', manager: '김은정' },
             { id: '61', name: '신선경(재택)', position: '사원', task: '압타밀 마케팅(재택)', department: '브랜드사업부(M)', manager: '김은정' },
             
-            // 백화점판매팀
-            { id: '62', name: '김옥금', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
-            { id: '63', name: '백현주', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
-            { id: '64', name: '이남정', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '김옥금' },
-            { id: '65', name: '유락희', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '백현주' },
-            { id: '66', name: '손연하', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
-            { id: '67', name: '이명희', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
-            { id: '68', name: '이정아', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
-            { id: '69', name: '장재원', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '이명희' },
-            { id: '70', name: '염미경', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
-            { id: '71', name: '배여진', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '염미경' },
-            { id: '72', name: '박지우', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
-            { id: '73', name: '김희정', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '박지우' },
-            { id: '74', name: '정원화', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
-            { id: '75', name: '김경미', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
-            { id: '76', name: '신형묵', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
-            { id: '77', name: '이민선', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
-            { id: '78', name: '노숙경', position: '시니어(주5)', task: '드리미 백화점', department: '백화점판매팀', manager: '이민선' },
-            { id: '79', name: '박소현', position: '매니저', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' },
-            { id: '80', name: '강효순', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '박소현' },
-            { id: '81', name: '안미경', position: '시니어(주4)', task: '드리미 백화점', department: '백화점판매팀', manager: '강병훈' }
+
         ];
 
         // CEO 보호 로직 적용
@@ -3073,6 +3308,12 @@ class OrgChartSystem {
     generateId() {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
     }
+
+
+
+
+
+
 }
 
 // 시스템 초기화

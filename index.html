@@ -9,6 +9,7 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 </head>
 <body>
     <div class="container">
@@ -59,7 +60,11 @@
                     <div class="actions">
                         <button id="clear-all-btn" class="danger-btn">🗑️ 모두 지우기</button>
                         <button id="export-excel-btn" class="export-btn">📊 엑셀 내보내기</button>
-                        <button id="export-pdf-btn" class="export-btn pdf-btn">📄 대형 인쇄용 PDF 내보내기</button>
+                        <div class="actions">
+                            <button id="clear-all-btn" class="danger-btn">🗑️ 모두 지우기</button>
+                            <button id="export-excel-btn" class="export-btn">📊 엑셀 내보내기</button>
+                            <button id="export-pdf-btn" class="export-btn pdf-btn">📄 대형 인쇄용 PDF 내보내기</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -91,30 +96,62 @@
                         <h3>격자 설정</h3>
                         <div class="grid-settings-row">
                             <label>가로 좌석 수:</label>
-                            <input type="number" id="grid-cols" value="10" min="5" max="50">
+                            <input type="number" id="grid-cols" value="10" min="5" max="12">
                             <label>세로 좌석 수:</label>
-                            <input type="number" id="grid-rows" value="8" min="5" max="50">
+                            <input type="number" id="grid-rows" value="8" min="5" max="8">
                             <button id="apply-grid-btn" class="apply-btn">🔄 격자 적용</button>
                         </div>
                     </div>
                     
-                    <div class="seat-actions">
-                        <h3>좌석 관리</h3>
-                        <div class="seat-actions-row">
-                            <button id="clear-selection-btn" class="clear-btn">🗑️ 선택 해제</button>
-                            <button id="assign-team-btn" class="assign-btn">👥 팀 할당</button>
-                            <button id="save-layout-btn" class="save-btn">💾 배치 저장</button>
-                            <button id="load-layout-btn" class="load-btn">📁 배치 불러오기</button>
-                            <button id="export-seat-pdf-btn" class="export-btn pdf-btn">📄 대형 인쇄용 PDF 내보내기</button>
+
+                    
+                    <div class="seat-color-settings">
+                        <h3>좌석 색상 설정</h3>
+                        <div class="color-options">
+                            <div class="color-option">
+                                <label>색상 구분:</label>
+                                <select id="seat-color-mode" class="color-mode-selector">
+                                    <option value="none">색상 없음</option>
+                                    <option value="position">직급별 색상</option>
+                                    <option value="department">부서별 색상</option>
+                                    <option value="team">팀별 색상</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
+                    
+
                 </div>
             </div>
 
             <div class="seat-main-content">
                 <div class="seat-sidebar">
-                    <h3>팀 카드</h3>
-                    <div id="team-cards-list" class="team-cards-list"></div>
+                    <h3>좌석 관리</h3>
+                    <div class="seat-management-panel">
+                        <div class="seat-management-section">
+                            <h4>선택된 좌석</h4>
+                            <div class="selected-seats-display">
+                                <span id="selected-seats-display">0개 선택됨</span>
+                            </div>
+                        </div>
+                        
+                        <div class="seat-management-section">
+                            <h4>빠른 작업</h4>
+                            <div class="quick-actions">
+                                <button id="quick-clear-seats" class="quick-action-btn">🗑️ 좌석 비우기</button>
+                                <button id="quick-assign-team" class="quick-action-btn">👥 팀 할당</button>
+                                <button id="quick-save-layout" class="quick-action-btn">💾 저장</button>
+                                <button id="quick-load-layout" class="quick-action-btn">📁 불러오기</button>
+                                <button id="quick-clear-selection" class="quick-action-btn">❌ 선택 해제</button>
+                                <button id="quick-export-pdf" class="quick-action-btn">📄 PDF 내보내기</button>
+                            </div>
+                        </div>
+                        
+                        <div class="seat-management-section">
+                            <h4>팀 카드</h4>
+                            <div id="team-cards-list" class="team-cards-list"></div>
+                        </div>
+                    </div>
                     
                     <div class="seat-info-panel">
                         <h3>좌석 정보</h3>
@@ -159,7 +196,7 @@
                                 </label>
                                 <label>
                                     <input type="radio" name="interaction-mode" value="context-menu">
-                                    <span>🔧 상세 편집</span>
+                                    <span>🔧 상세 편집 (우클릭)</span>
                                 </label>
                             </div>
                         </div>
