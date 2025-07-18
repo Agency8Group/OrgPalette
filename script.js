@@ -1194,8 +1194,6 @@ class OrgChartSystem {
             this.applyPositionColor(seatElement, person.position);
         } else if (this.currentColorMode === 'department') {
             this.applyDepartmentColor(seatElement, person.department);
-        } else if (this.currentColorMode === 'team') {
-            this.applyTeamColor(seatElement, person.department);
         }
     }
 
@@ -1215,10 +1213,7 @@ class OrgChartSystem {
         }
     }
 
-    // 팀별 색상 적용 (부서와 동일)
-    applyTeamColor(seatElement, department) {
-        this.applyDepartmentColor(seatElement, department);
-    }
+
 
     // 직급 클래스명 생성
     getPositionClass(position) {
@@ -1243,8 +1238,7 @@ class OrgChartSystem {
         const modeNames = {
             'none': '색상 없음',
             'position': '직급별 색상',
-            'department': '부서별 색상',
-            'team': '팀별 색상'
+            'department': '부서별 색상'
         };
         return modeNames[mode] || mode;
     }
@@ -1275,7 +1269,7 @@ class OrgChartSystem {
                 { label: '매니저', color: 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)' },
                 { label: '시니어', color: 'linear-gradient(135deg, #fdbb2d 0%, #22c1c3 100%)' }
             ];
-        } else if (this.currentColorMode === 'department' || this.currentColorMode === 'team') {
+        } else if (this.currentColorMode === 'department') {
             return [
                 { label: '전략기획실', color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
                 { label: '경영관리실', color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
