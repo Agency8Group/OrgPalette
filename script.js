@@ -107,9 +107,9 @@ class OrgChartSystem {
             seatLayoutTab: document.getElementById('seat-layout-tab'),
             
             // 자리배치도 관련 요소들
-            gridCols: null,
-            gridRows: null,
-            applyGridBtn: null,
+            gridCols: document.getElementById('grid-cols'),
+            gridRows: document.getElementById('grid-rows'),
+            applyGridBtn: document.getElementById('apply-grid-btn'),
             seatGrid: document.getElementById('seat-grid'),
             teamCardsList: document.getElementById('team-cards-list'),
             seatInfo: document.getElementById('seat-info'),
@@ -170,7 +170,7 @@ class OrgChartSystem {
         });
         
         // 자리배치도 관련 이벤트 리스너들
-        // this.elements.applyGridBtn.addEventListener('click', () => this.applyGridSettings());
+        this.elements.applyGridBtn.addEventListener('click', () => this.applyGridSettings());
         this.elements.seatZoomInBtn.addEventListener('click', () => this.seatZoomIn());
         this.elements.seatZoomOutBtn.addEventListener('click', () => this.seatZoomOut());
         this.elements.seatResetZoomBtn.addEventListener('click', () => this.resetSeatZoom());
@@ -190,9 +190,9 @@ class OrgChartSystem {
         document.getElementById('quick-export-pdf').addEventListener('click', () => this.exportSeatLayoutToPDF());
 
         
-        // 격자 설정 입력 필드 실시간 검증 (제거됨)
-        // this.elements.gridCols.addEventListener('input', (e) => this.validateGridInput(e, 'cols'));
-        // this.elements.gridRows.addEventListener('input', (e) => this.validateGridInput(e, 'rows'));
+        // 격자 설정 입력 필드 실시간 검증
+        this.elements.gridCols.addEventListener('input', (e) => this.validateGridInput(e, 'cols'));
+        this.elements.gridRows.addEventListener('input', (e) => this.validateGridInput(e, 'rows'));
         
         // 자리배치도 마우스 드래그 패닝 이벤트
         this.setupSeatPanning();
@@ -289,9 +289,6 @@ class OrgChartSystem {
     // 자리배치도 격자 초기화
     initializeSeatGrid() {
         this.seatGrid = [];
-        // 항상 12x8로 고정
-        this.gridCols = 12;
-        this.gridRows = 8;
         for (let row = 0; row < this.gridRows; row++) {
             this.seatGrid[row] = [];
             for (let col = 0; col < this.gridCols; col++) {
@@ -315,12 +312,14 @@ class OrgChartSystem {
 
     // 격자 설정 적용
     applyGridSettings() {
-        // 고정값만 사용, 아무 동작도 하지 않음
-        this.gridCols = 12;
-        this.gridRows = 8;
+        const newCols = parseInt(this.elements.gridCols.value);
+        const newRows = parseInt(this.elements.gridRows.value);
+        // 제한 없이 바로 적용
+        this.gridCols = newCols;
+        this.gridRows = newRows;
         this.initializeSeatGrid();
         this.updateSeatGrid();
-        this.updateStatus(`격자가 12x8로 고정되어 있습니다.`);
+        this.updateStatus(`격자가 ${this.gridCols}x${this.gridRows}로 변경되었습니다.`);
     }
 
     // 자리배치도 격자 업데이트
@@ -1706,8 +1705,8 @@ class OrgChartSystem {
                         this.specialZones.clear();
                     }
                     
-                    // this.elements.gridCols.value = this.gridCols;
-                    // this.elements.gridRows.value = this.gridRows;
+                    this.elements.gridCols.value = this.gridCols;
+                    this.elements.gridRows.value = this.gridRows;
                     
                     this.updateSeatGrid();
                     this.updateTeamCardsList();
